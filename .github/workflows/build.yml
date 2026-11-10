@@ -1,0 +1,32 @@
+# Bouwt en test PraktijkClean op een Windows-machine van GitHub (gratis voor openbare projecten).
+# Het resultaat (PraktijkClean.exe) staat daarna onder Actions > (laatste run) > Artifacts.
+name: Bouwen en testen
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Testen en bouwen
+        shell: powershell
+        run: .\build.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PraktijkClean
+          path: |
+            dist/PraktijkClean.exe
+            dist/PraktijkClean.exe.sha256

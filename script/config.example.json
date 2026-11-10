@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "simulationMode": true,
+  "automaticCleanupConfirmed": false,
+  "paused": false,
+  "maxFilesPerRun": 200,
+  "minimumAgeMinutes": 15,
+  "deleteMode": "permanent",
+  "emptyRecycleBin": false,
+  "recycleBinRetentionDays": 7,
+  "schedule": {
+    "daily": true,
+    "dailyTime": "12:30",
+    "atLogon": true
+  },
+  "folders": [
+    {
+      "id": "desktop",
+      "displayName": "Bureaublad",
+      "enabled": true,
+      "type": "knownFolder",
+      "knownFolder": "Desktop",
+      "path": null,
+      "expectedPath": "C:\\Users\\voorbeeld\\Desktop",
+      "retentionDays": 7,
+      "recurse": false,
+      "allowNetworkOrSync": false,
+      "exclusions": {
+        "files": [],
+        "subfolders": [],
+        "patterns": [],
+        "extensions": [".lnk", ".url"]
+      }
+    },
+    {
+      "id": "downloads",
+      "displayName": "Downloads",
+      "enabled": true,
+      "type": "knownFolder",
+      "knownFolder": "Downloads",
+      "path": null,
+      "expectedPath": "C:\\Users\\voorbeeld\\Downloads",
+      "retentionDays": 7,
+      "recurse": false,
+      "allowNetworkOrSync": false,
+      "exclusions": {
+        "files": [],
+        "subfolders": [],
+        "patterns": [],
+        "extensions": [".lnk", ".url"]
+      }
+    }
+  ]
+}

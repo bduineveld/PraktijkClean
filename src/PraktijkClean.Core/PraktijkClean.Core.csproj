@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Kernlogica zonder gebruikersinterface: configuratie, validatie, taakdefinitie en installatie.
+       .NET Framework 4.8 (zit in elke Windows 10/11). De beheerapp compileert deze bronbestanden mee,
+       zodat PraktijkClean.exe één bestand blijft; deze bibliotheek wordt alleen door de tests gebruikt.
+       Windows-specifieke onderdelen staan in de map Windows\ en zijn gemarkeerd met [SupportedOSPlatform]. -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>PraktijkClean.Core</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PraktijkClean.Tests" />
+  </ItemGroup>
+
+</Project>

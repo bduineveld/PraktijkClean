@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- De beheerapp (Windows-venster). Bouwen: zie README of build.ps1 in de projectmap.
+       .NET Framework 4.8 zit in elke Windows 10 en 11: er hoeft niets extra geïnstalleerd te worden en
+       de exe blijft klein. De kernlogica (PraktijkClean.Core) wordt als broncode meegecompileerd, zodat
+       PraktijkClean.exe één zelfstandig bestand is. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>PraktijkClean</AssemblyName>
+    <RootNamespace>PraktijkClean</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <GenerateSupportedRuntime>false</GenerateSupportedRuntime>
+
+    <!-- Versie-informatie: zichtbaar bij Eigenschappen > Details van de .exe. -->
+    <Version>1.1.0</Version>
+    <Product>PraktijkClean</Product>
+    <Description>Automatische opschoning van bureaublad en downloads voor huisartsenpraktijken</Description>
+    <Copyright>MIT-licentie</Copyright>
+    <NeutralLanguage>nl-NL</NeutralLanguage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\PraktijkClean.Core\**\*.cs" Exclude="..\PraktijkClean.Core\bin\**;..\PraktijkClean.Core\obj\**" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Het opschoonscript wordt in de .exe ingebakken en bij 'Instellingen opslaan' weggeschreven. -->
+    <EmbeddedResource Include="..\..\script\cleanup.ps1" LogicalName="PraktijkClean.cleanup.ps1" />
+  </ItemGroup>
+
+</Project>
