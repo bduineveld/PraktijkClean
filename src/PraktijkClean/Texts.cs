@@ -61,9 +61,9 @@ internal static class Texts
         "daarvoor een belangrijke aanvullende maatregel.";
 
     // Korte notities onder de keuze (één regel); de volledige uitleg staat achter de links.
-    public const string RecycleBinNote = "Terug te halen, maar blijft op de pc staan tot de Prullenbak leeg is.";
+    public const string RecycleBinNote = "Aanbevolen: nog even terug te halen. Laat PraktijkClean de Prullenbak daarna legen (hieronder).";
 
-    public const string PermanentNote = "Aanbevolen: niet via Windows terug te zetten.";
+    public const string PermanentNote = "Direct weg: niet via Windows terug te zetten.";
 
     public const string EmptyBinInfo =
         "Prullenbak automatisch legen\n\n" +
@@ -82,12 +82,19 @@ internal static class Texts
         "Net als bij de mappen gebeurt dit pas als automatische opschoning actief is; in simulatiemodus wordt " +
         "alleen geteld.\n\nPrullenbak automatisch legen inschakelen?";
 
+    public const string TrayEnabled =
+        "Het icoon staat nu rechtsonder in het systeemvak en start voortaan bij elke aanmelding.\n\n" +
+        "Groen = aan, blauw = simulatie, oranje = gepauzeerd, rood = probleem, grijs = nog niet ingesteld. " +
+        "Ga met de muis over het icoon om te zien wat er vandaag is opgeruimd; klik erop om PraktijkClean te openen.\n\n" +
+        "Ziet u het icoon niet? Windows verbergt nieuwe icoontjes achter het pijltje (^) rechtsonder. Sleep het " +
+        "icoon van daar naar de taakbalk om het altijd te zien.";
+
     public const string UninstallConfirm =
         "PraktijkClean volledig verwijderen?\n\n" +
-        "Dit verwijdert de geplande taak, het opschoonscript, de instellingen en het logboek van PraktijkClean " +
+        "Dit verwijdert de geplande taak, het opschoonscript, de instellingen, het logboek en het icoon in het systeemvak van PraktijkClean " +
         "voor deze gebruiker.\n\n" +
         "Uw eigen bestanden (Bureaublad, Downloads en andere mappen) worden NIET aangeraakt.\n\n" +
-        "Het programma PraktijkClean.exe zelf blijft staan; dat kunt u daarna zelf verwijderen.";
+        "Het programmabestand dat u heeft gedownload (PraktijkClean-<versie>.exe) blijft staan; dat kunt u daarna zelf verwijderen.";
 
     public const string ElevatedWarning =
         "PraktijkClean draait nu met administratorrechten. Dat is niet nodig.\n\n" +

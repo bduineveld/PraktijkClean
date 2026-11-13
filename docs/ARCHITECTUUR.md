@@ -38,18 +38,24 @@ src/PraktijkClean.Core/          Logica zonder venster: configuratie, validatie,
    Installer.cs                  Installeren, herstellen, pauzeren, activeren, deïnstalleren
    ScriptRunner.cs               Script starten vanuit de app (simulatie / nu opruimen)
    PathRules.cs                  Controle van gekozen mappen in de app
+   Exclusions.cs                 Uitzonderingen per map toevoegen/verwijderen (zelfde regels als het script)
+   LogSummary.cs                 Telt uit het logboek wat er in de afgelopen dagen is opgeruimd
    Compat.cs                     JSON lezen/schrijven en hulpmiddelen voor .NET Framework 4.8
    Windows/                      Windows-specifiek: Known Folders, Taakplanner (COM), gebruiker
 src/PraktijkClean/               De beheerapp (vensters en teksten)
    Texts.cs                      Alle langere teksten van de interface
    MainForm.cs                   Hoofdvenster
-   SimulationResultForm.cs       Venster met simulatieresultaat
+   SimulationResultForm.cs       Venster met simulatieresultaat (met 'Uitsluiten' via rechtermuisknop)
+   InputDialog.cs                Klein invoervenster (extensie of patroon)
+   StatusInfo.cs                 Bepaalt de status (aan/simulatie/pauze/probleem) voor balk en icoon
+   TrayContext.cs                Het icoon in het systeemvak (PraktijkClean-<versie>.exe /tray)
+   TrayIntegration.cs            Icoon aan/uit: kopie van de exe, opstartitem, afsluiten
 tests/Script/Run-ScriptTests.ps1 Tests voor het script (zonder externe modules)
 tests/PraktijkClean.Tests/       Tests voor de C#-logica (zonder externe pakketten)
 ```
 
 De app is gebouwd voor **.NET Framework 4.8**, dat in Windows 10 (vanaf 1903) en Windows 11 standaard
-aanwezig is. Daardoor is `PraktijkClean.exe` één klein bestand (ongeveer 200 kB) zonder meegeleverde runtime.
+aanwezig is. Daardoor is `PraktijkClean-<versie>.exe` één klein bestand (ongeveer 250 kB) zonder meegeleverde runtime.
 De code van `PraktijkClean.Core` wordt bij het bouwen in de exe zelf opgenomen (geen losse dll), JSON wordt
 gelezen en geschreven met het ingebouwde `DataContractJsonSerializer` (`Compat.cs`), en schermschaal (DPI)
 staat in `app.manifest` (systeembreed; bij verschillende schermen schaalt Windows het venster bij).
@@ -163,16 +169,18 @@ datums. Zie [BEPERKINGEN.md](BEPERKINGEN.md).
 
 ## Verwijderen: Prullenbak of definitief
 
-Instelbaar, standaard **definitief** (sinds versie 1.1.0; daarvoor Prullenbak). Afweging: in de Prullenbak
-blijven de gegevens op de pc staan tot die wordt geleegd, en juist dat wil een praktijk voorkomen; de
-simulatiemodus en de bevestigingen vangen vergissingen op. "Definitief" gebruikt de gewone
+Instelbaar. Standaard (bij een nieuwe installatie, sinds versie 1.2.0) gaan bestanden na 1 dag **naar de
+Prullenbak** en leegt PraktijkClean de Prullenbak **na nog 1 dag** (`emptyRecycleBin` aan, termijn 1 dag).
+Afweging: een vergissing is dan nog een dag terug te halen, terwijl gegevens niet ongemerkt in de Prullenbak
+blijven staan. In 1.1.0 was "definitief" de standaard; bestaande instellingen worden bij een update niet
+veranderd (een ontbrekend veld krijgt de voorzichtige waarde: Prullenbak legen uit). "Definitief" gebruikt de gewone
 Windows-verwijderfunctie. In beide gevallen is er **geen sprake van veilig vernietigen**: gegevens kunnen
 met speciale software soms worden teruggehaald en er kunnen elders kopieën zijn. PraktijkClean doet daarover
 geen AVG-claims.
 
 ## Prullenbak legen
 
-Optioneel (`emptyRecycleBin`, standaard uit). Windows bewaart de Prullenbak per schijf en per gebruiker in
+Optioneel (`emptyRecycleBin`; bij een nieuwe installatie aan met een termijn van 1 dag, bij een ontbrekend veld uit). Windows bewaart de Prullenbak per schijf en per gebruiker in
 `<schijf>:\$Recycle.Bin\<SID>`. Elk item bestaat uit een `$I`-bestand (oorspronkelijk pad, grootte, tijdstip van
 verwijderen) en een `$R`-bestand of -map met de inhoud. Het script leest de `$I`-bestanden zelf (versie 1 en 2),
 zodat items op **tijd in de Prullenbak** worden geselecteerd; `SHEmptyRecycleBin` kan alleen alles tegelijk legen.
@@ -187,3 +195,22 @@ zodat items op **tijd in de Prullenbak** worden geselecteerd; `SHEmptyRecycleBin
 - Eerst de `$R`-inhoud, daarna het `$I`-bestand; mislukt de inhoud, dan blijft het item zichtbaar in de Prullenbak.
 - Logboek en status bevatten alleen aantallen; de oorspronkelijke paden verschijnen alleen in het
   simulatievenster.
+
+## Icoon in het systeemvak (optioneel)
+
+Standaard uit; aan te zetten met een vinkje in het statusvak van de app. Dan:
+
+- kopieert de app zichzelf naar `%LOCALAPPDATA%\PraktijkClean\PraktijkClean.exe`. Het gedownloade bestand staat
+  vaak in Downloads, dat PraktijkClean zelf opschoont; de installatiemap wordt nooit opgeschoond.
+- zet de app die kopie met `/tray` in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (per gebruiker,
+  geen administratorrechten nodig), zodat het icoon bij elke aanmelding start.
+- leest het icoon elke 20 seconden `config.json`, `status.json`, het logboek en de geplande taak, en toont
+  groen (aan), blauw (simulatie), oranje (gepauzeerd), rood (aan, maar de taak ontbreekt of staat uit) of grijs
+  (niet ingesteld), met een eigen teken per status. Het icoon verwijdert zelf nooit iets; het kan alleen de app
+  openen, pauzeren/hervatten en zichzelf verbergen.
+- werkt de app bij het openen de kopie bij als die een andere versie is, en sluit hij het icoon af via een
+  benoemd signaal (`Local\PraktijkClean-TrayExit`). Bij "Volledig verwijderen" worden opstartitem en kopie weggehaald.
+
+Een tweede start van de app (bijvoorbeeld via het icoon) haalt het al geopende venster naar voren
+(`Local\PraktijkClean-Show`). Het venster leest bij activeren de opgeslagen instellingen opnieuw in, zodat een
+pauze die via het icoon is gezet niet door 'Instellingen opslaan' ongedaan wordt gemaakt.

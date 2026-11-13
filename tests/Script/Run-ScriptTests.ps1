@@ -688,6 +688,8 @@ try {
         $cfgDir = Split-Path -Parent $cfg
         $log = [System.IO.File]::ReadAllText((Join-Path (Join-Path $cfgDir 'logs') 'praktijkclean.log'))
         $status = [System.IO.File]::ReadAllText((Join-Path $cfgDir 'status.json'))
+        # Vaste opbouw van de logregel: de beheerapp (LogSummary.cs) telt hieruit de afgelopen 7 dagen.
+        Assert-True ($log -match '(?m)^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \[[^\]]*\] [^:]+: .*?, \d+ verwijderd \([\d.]+ MB\), .*?, \d+ fouten\.') 'logregel volgens vaste opbouw'
         foreach ($text in @($log, $status)) {
             Assert-True ($text.IndexOf('Patient-Jansen') -lt 0) 'geen bestandsnaam in log/status'
             Assert-True ($text.IndexOf($d) -lt 0) 'geen volledig pad in log/status'

@@ -21,13 +21,13 @@ public sealed class ConfigTests
         Assert.True(c.SimulationMode, "simulatiemodus staat standaard aan");
         Assert.False(c.AutomaticCleanupConfirmed, "automatisch verwijderen standaard bevestigd");
         Assert.Equal(2, c.Folders.Count, "aantal mappen");
-        Assert.True(c.Folders.All(f => f.RetentionDays == 7), "standaard 7 dagen");
+        Assert.True(c.Folders.All(f => f.RetentionDays == 1), "standaard na 1 dag");
         Assert.True(c.Folders.All(f => !f.Recurse), "submappen standaard uit");
         Assert.True(c.Folders.All(f => !f.AllowNetworkOrSync), "OneDrive/netwerk standaard geblokkeerd");
         Assert.True(c.Folders.All(f => f.Exclusions.Extensions.Contains(".lnk")), ".lnk standaard uitgezonderd");
-        Assert.Equal(DeleteModes.Permanent, c.DeleteMode, "standaard definitief verwijderen");
-        Assert.False(c.EmptyRecycleBin, "Prullenbak legen staat standaard uit");
-        Assert.Equal(7, c.RecycleBinRetentionDays, "standaard termijn Prullenbak");
+        Assert.Equal(DeleteModes.RecycleBin, c.DeleteMode, "standaard eerst naar de Prullenbak");
+        Assert.True(c.EmptyRecycleBin, "Prullenbak legen staat standaard aan");
+        Assert.Equal(1, c.RecycleBinRetentionDays, "standaard na nog 1 dag uit de Prullenbak");
     }
 
     [Test]

@@ -1,5 +1,5 @@
 # Bouwt en test PraktijkClean op een Windows-machine van GitHub (gratis voor openbare projecten).
-# Het resultaat (PraktijkClean.exe) staat daarna onder Actions > (laatste run) > Artifacts.
+# Het resultaat (PraktijkClean-<versie>.exe) staat daarna onder Actions > (laatste run) > Artifacts.
 name: Bouwen en testen
 
 on:
@@ -28,5 +28,5 @@ jobs:
         with:
           name: PraktijkClean
           path: |
-            dist/PraktijkClean.exe
-            dist/PraktijkClean.exe.sha256
+            dist/PraktijkClean-*.exe
+            dist/PraktijkClean-*.exe.sha256

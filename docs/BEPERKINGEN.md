@@ -1,5 +1,20 @@
 # Bekende beperkingen en nog niet geteste onderdelen
 
+## Getest op Windows 11 (versie 1.2.0)
+
+Getest op dezelfde Windows 11-testcomputer (ARM64, schermschaal 200 %):
+
+- `build.ps1` volledig: 55 scripttests en 44 C#-tests geslaagd; `PraktijkClean-1.2.0.exe` (246 kB) is gebouwd.
+- In de app doorlopen: nieuwe standaardinstellingen (1 dag, Prullenbak na 1 dag legen), opslaan, gekleurde
+  statusbalk (grijs, blauw, oranje), overzicht van 7 dagen, uitzonderingenlijst, simulatie met
+  "nooit verwijderen" en "alle .svg-bestanden nooit verwijderen" via de rechtermuisknop (direct opgeslagen).
+- Icoon in het systeemvak: aanzetten (kopie + opstartitem), tooltip, menu, pauzeren via het icoon (taak uit,
+  app toont daarna GEPAUZEERD), hervatten in de app (icoon volgt), openen via het icoon (venster komt terug,
+  geen tweede kopie), bijwerken van de kopie bij een nieuwe versie, uitzetten via vinkje en via
+  "Icoon verbergen", volledig verwijderen (map, taak en opstartitem weg).
+- **Niet** getest: de rode status (taak ontbreekt) en de melding die het icoon dan geeft; "Bestand kiezen…" en
+  "Submap kiezen…" met de dialoogvensters van Windows; het icoon na een echte nieuwe aanmelding.
+
 ## Getest op Windows 11 (versie 1.1.0)
 
 Getest op een Windows 11-testcomputer (ARM64, .NET Framework 4.8.1, schermschaal 200 %):

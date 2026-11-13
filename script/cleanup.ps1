@@ -57,7 +57,7 @@ param(
 
 Set-StrictMode -Version 2.0
 
-$script:PcVersion = '1.1.0'
+$script:PcVersion = '1.2.0'
 $script:PcSchemaVersion = 1
 $script:PcMaxConfigBytes = 262144
 $script:PcMaxEntriesPerFolder = 100000
@@ -1152,14 +1152,17 @@ function Invoke-PcMain {
         $result = Invoke-PcCleanup -ConfigPath $ConfigPath -Mode $Mode -ConfirmedByUser $ConfirmedByUser -IncludeFileNames $includeNames -NowUtc $now -InstallDir $installDir
         $status = Get-PcStatusObject -Result $result -Trigger $Trigger -NowUtc $now
 
-        $mb = [math]::Round($result.CandidateBytes / 1MB, 1)
-        $line = "[$Trigger] $($result.Action): $($result.CandidateCount) in aanmerking ($mb MB), $($result.DeletedCount) verwijderd, $($result.SkippedCount) overgeslagen, $($result.TooYoungCount) te recent, $($result.ErrorCount) fouten."
+        # Vaste opbouw: de beheerapp leest de aantallen hieruit voor het overzicht van de afgelopen dagen.
+        $mb = [math]::Round($result.CandidateBytes / 1MB, 1).ToString([System.Globalization.CultureInfo]::InvariantCulture)
+        $delMb = [math]::Round($result.DeletedBytes / 1MB, 1).ToString([System.Globalization.CultureInfo]::InvariantCulture)
+        $line = "[$Trigger] $($result.Action): $($result.CandidateCount) in aanmerking ($mb MB), $($result.DeletedCount) verwijderd ($delMb MB), $($result.SkippedCount) overgeslagen, $($result.TooYoungCount) te recent, $($result.ErrorCount) fouten."
         foreach ($m in $result.Messages) { $line += " | $m" }
         foreach ($f in $result.Folders) { if ($f.Message -ne '') { $line += " | map '$($f.Id)': $($f.Message)" } }
         if ($null -ne $result.RecycleBin) {
             $b = $result.RecycleBin
-            $binMb = [math]::Round($b.CandidateBytes / 1MB, 1)
-            $line += " | Prullenbak: $($b.CandidateCount) in aanmerking ($binMb MB), $($b.DeletedCount) geleegd, $($b.TooYoungCount) te recent, $($b.ErrorCount) fouten."
+            $binMb = [math]::Round($b.CandidateBytes / 1MB, 1).ToString([System.Globalization.CultureInfo]::InvariantCulture)
+            $binDelMb = [math]::Round($b.DeletedBytes / 1MB, 1).ToString([System.Globalization.CultureInfo]::InvariantCulture)
+            $line += " | Prullenbak: $($b.CandidateCount) in aanmerking ($binMb MB), $($b.DeletedCount) geleegd ($binDelMb MB), $($b.TooYoungCount) te recent, $($b.ErrorCount) fouten."
             if ($b.Message -ne '') { $line += " $($b.Message)" }
         }
         Write-PcLog -LogDir (Join-Path $dataDir 'logs') -Line $line

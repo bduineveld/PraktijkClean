@@ -16,13 +16,17 @@ Een voorbeeld staat in [`script/config.example.json`](../script/config.example.j
 | `paused` | true/false | `false` | Tijdelijk pauzeren: geplande uitvoeringen doen niets. |
 | `maxFilesPerRun` | getal 1–5000 | `200` | Komen er méér bestanden in aanmerking, dan wordt er **niets** verwijderd. |
 | `minimumAgeMinutes` | getal 1–1440 | `15` | Bestanden jonger dan dit worden nooit verwijderd, ook niet bij "Direct opruimen". |
-| `deleteMode` | `"permanent"` / `"recycleBin"` | `"permanent"` | Definitief verwijderen of naar de Prullenbak. |
-| `emptyRecycleBin` | true/false | `false` | De Prullenbak van deze gebruiker (alle lokale schijven) automatisch legen. Alleen wanneer er ook verwijderd mag worden (niet in simulatiemodus, niet bij pauze). Mag ontbreken (= uit). |
-| `recycleBinRetentionDays` | getal 0–3650 | `7` | Alleen items die langer dan dit aantal dagen in de Prullenbak staan. `0` = alles (met inachtneming van `minimumAgeMinutes`). **Verplicht** als `emptyRecycleBin` `true` is. |
+| `deleteMode` | `"permanent"` / `"recycleBin"` | `"recycleBin"` | Naar de Prullenbak of definitief verwijderen. |
+| `emptyRecycleBin` | true/false | `true` | De Prullenbak van deze gebruiker (alle lokale schijven) automatisch legen. Alleen wanneer er ook verwijderd mag worden (niet in simulatiemodus, niet bij pauze). Mag ontbreken (= uit). |
+| `recycleBinRetentionDays` | getal 0–3650 | `1` | Alleen items die langer dan dit aantal dagen in de Prullenbak staan. `0` = alles (met inachtneming van `minimumAgeMinutes`). **Verplicht** als `emptyRecycleBin` `true` is. |
 | `schedule.daily` | true/false | `true` | Dagelijks uitvoeren. |
 | `schedule.dailyTime` | `"UU:MM"` | `"12:30"` | Tijdstip (24-uursnotatie, lokale tijd). |
 | `schedule.atLogon` | true/false | `true` | Uitvoeren bij aanmelden (2 minuten na aanmelden). |
 | `folders` | lijst | Bureaublad, Downloads | Maximaal 20 mappen. |
+
+De standaardwaarden zijn die van een nieuwe installatie (Bureaublad en Downloads met `retentionDays` 1). Ontbreekt
+in een bestaande `config.json` een veld, dan geldt de voorzichtige waarde: `deleteMode` `"permanent"`,
+`emptyRecycleBin` `false`, `recycleBinRetentionDays` `7`, `retentionDays` `7`.
 
 `schedule` wordt alleen door de app gebruikt (voor de geplande taak). Wijzigt u `schedule` met de hand,
 klik dan in de app op "Instellingen opslaan" of "Installatie herstellen" om de taak bij te werken.

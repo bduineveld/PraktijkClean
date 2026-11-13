@@ -9,13 +9,27 @@ namespace PraktijkClean.Core;
 /// <summary>Lezen, schrijven en standaardwaarden van config.json.</summary>
 public static class ConfigStore
 {
-    /// <summary>Standaardinstellingen bij eerste gebruik: Bureaublad en Downloads, 7 dagen, simulatiemodus.</summary>
+    /// <summary>Standaard bewaartermijn voor Bureaublad en Downloads (dagen).</summary>
+    public const int DefaultRetentionDays = 1;
+
+    /// <summary>Standaard: zo lang blijft iets in de Prullenbak staan voordat PraktijkClean het definitief verwijdert (dagen).</summary>
+    public const int DefaultRecycleBinDays = 1;
+
+    /// <summary>
+    /// Standaardinstellingen bij eerste gebruik: simulatiemodus; Bureaublad en Downloads na 1 dag naar de Prullenbak,
+    /// en wat daarna nog 1 dag in de Prullenbak staat, wordt definitief verwijderd.
+    /// (Alleen voor nieuwe installaties. Een bestaande config.json zonder een van deze velden krijgt de
+    /// voorzichtiger waarden uit AppConfig.Init, zodat er na een update niet ineens meer wordt verwijderd.)
+    /// </summary>
     public static AppConfig CreateDefault(string desktopPath, string downloadsPath)
     {
         return new AppConfig
         {
             SimulationMode = true,
             AutomaticCleanupConfirmed = false,
+            DeleteMode = DeleteModes.RecycleBin,
+            EmptyRecycleBin = true,
+            RecycleBinRetentionDays = DefaultRecycleBinDays,
             Folders =
             {
                 CreateKnownFolder("desktop", "Bureaublad", KnownFolderNames.Desktop, desktopPath),
@@ -31,7 +45,7 @@ public static class ConfigStore
         Type = FolderTypes.KnownFolder,
         KnownFolder = knownFolder,
         ExpectedPath = path,
-        RetentionDays = 7,
+        RetentionDays = DefaultRetentionDays,
         Exclusions = DefaultExclusions(),
     };
 

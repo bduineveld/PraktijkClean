@@ -10,12 +10,12 @@ en PDF's daar niet onbedoeld blijven staan.
 - Na installatie staat alles in **simulatiemodus**: er wordt pas iets verwijderd nadat u dat expliciet
   bevestigt.
 
-> **Status: versie 1.1.0, getest op een Windows 11-testcomputer, nog niet in de praktijk.** Lees eerst
+> **Status: versie 1.2.0, getest op een Windows 11-testcomputer, nog niet in de praktijk.** Lees eerst
 > [docs/BEPERKINGEN.md](docs/BEPERKINGEN.md) en probeer PraktijkClean op een testcomputer voordat u het
 > op werkplekken gebruikt.
 
 > **Verwijderen is niet hetzelfde als veilig vernietigen.** PraktijkClean verwijdert bestanden op de gewone
-> Windows-manier (standaard definitief, instelbaar: naar de Prullenbak). Het is een hulpmiddel tegen onbedoeld achterblijvende
+> Windows-manier (standaard via de Prullenbak, die PraktijkClean daarna zelf leegt; instelbaar: direct definitief). Het is een hulpmiddel tegen onbedoeld achterblijvende
 > bestanden, geen garantie voor AVG-conforme of onherstelbare vernietiging.
 
 ---
@@ -35,9 +35,10 @@ en PDF's daar niet onbedoeld blijven staan.
 
 ### Starten
 
-1. Download `PraktijkClean.exe` van de pagina [Releases](https://github.com/bduineveld/PraktijkClean/releases/latest)
-   (of uit de map [`dist`](dist)) en zet het op de werkplek (bijvoorbeeld in een map `Programma's` in het gebruikersprofiel).
-   Het is één bestand van ongeveer 200 kB; er hoeft niets bij geïnstalleerd te worden (het gebruikt het
+1. Download `PraktijkClean-<versie>.exe` (bijvoorbeeld `PraktijkClean-1.2.0.exe`) van de pagina
+   [Releases](https://github.com/bduineveld/PraktijkClean/releases/latest) (of uit de map [`dist`](dist)) en zet
+   het op de werkplek (bijvoorbeeld in een map `Programma's` in het gebruikersprofiel).
+   Het is één bestand van ongeveer 250 kB; er hoeft niets bij geïnstalleerd te worden (het gebruikt het
    .NET Framework 4.8 dat standaard in Windows 10 en 11 zit).
 2. Start het programma **als de gebruiker van die werkplek** (niet "Als administrator uitvoeren").
 3. Ziet u "Windows heeft uw pc beschermd"? Klik op **Meer info → Toch uitvoeren**. Dat komt doordat het
@@ -45,12 +46,15 @@ en PDF's daar niet onbedoeld blijven staan.
 
 ### In vijf stappen instellen
 
-1. **Controleer de mappen.** Bureaublad en Downloads staan klaar met "ouder dan 7 dagen". Klik een map aan
-   om de bewaartermijn, uitzonderingen en waarschuwingen te zien.
+1. **Controleer de mappen.** Bureaublad en Downloads staan klaar met "ouder dan 1 dag": wat langer dan een dag
+   op het bureaublad of in Downloads staat, gaat naar de Prullenbak, en wat daarna nog een dag in de Prullenbak
+   staat, wordt definitief verwijderd. Klik een map aan om de bewaartermijn, uitzonderingen en waarschuwingen te zien.
 2. **Kies het moment**: dagelijks op een tijdstip en/of bij aanmelden van Windows.
 3. Klik **Instellingen opslaan**. Het script en de geplande taak worden geïnstalleerd, in simulatiemodus.
    Er wordt niets verwijderd.
 4. Klik **Simulatie uitvoeren** en bekijk welke bestanden in aanmerking komen en welke worden overgeslagen.
+   Moet een bestand blijven staan? Klik er met de **rechtermuisknop** op (of gebruik de knop **Uitsluiten**) en
+   kies "nooit verwijderen", "alle .pdf-bestanden nooit verwijderen" of "submap overslaan". Dat wordt meteen opgeslagen.
 5. Tevreden? Klik **Automatische opschoning activeren…**. U ziet nogmaals een overzicht en moet bevestigen.
 
 ### De knoppen
@@ -66,6 +70,35 @@ en PDF's daar niet onbedoeld blijven staan.
 | PraktijkClean volledig verwijderen… | Verwijdert taak, script, instellingen en logboek. Nooit uw eigen bestanden. |
 | Logboek openen | Toont het logboek (zonder bestandsnamen). |
 
+### Staat het aan?
+
+Bovenin het venster staat een gekleurde balk: **groen = AAN** (er wordt automatisch opgeruimd), **blauw =
+SIMULATIE** (alleen tellen), **oranje = GEPAUZEERD**, **rood** = aan, maar de geplande taak ontbreekt of staat
+uit (gebruik "Installatie herstellen"), **grijs** = nog niet ingesteld. Daaronder staan de laatste controle,
+de volgende geplande controle en een overzicht van de **afgelopen 7 dagen** (aantal controles, opgeruimde
+bestanden en wat uit de Prullenbak is geleegd).
+
+Wilt u de status altijd zien? Zet dan **"Icoon rechtsonder in het systeemvak tonen"** aan. Het icoon heeft
+dezelfde kleuren (met een teken: ✓ aan, ○ simulatie, ‖ gepauzeerd, ! probleem), toont bij aanwijzen wat er
+vandaag is opgeruimd en opent PraktijkClean met een klik; via de rechtermuisknop kunt u pauzeren of het icoon
+verbergen. Windows zet nieuwe icoontjes eerst achter het pijltje (^); sleep het naar de taakbalk om het altijd
+te zien. Het icoon start bij elke aanmelding en staat standaard uit.
+
+Het **logboek** staat in `%LOCALAPPDATA%\PraktijkClean\logs\praktijkclean.log`: één regel per controle met
+de aantallen, nooit bestandsnamen. Boven 512 kB wordt het oude deel bewaard als `praktijkclean.1.log`.
+
+### Uitzonderingen
+
+Per map staat rechts een lijst met **uitzonderingen**: wat daarin staat, wordt nooit verwijderd.
+
+- **Bestand kiezen…**: kies een of meer bestanden uit die map.
+- **Submap kiezen…**: een submap overslaan (alleen van belang als "Ook submappen doorzoeken" aan staat).
+- **Extensie of patroon…**: typ een extensie (`.docx`), een bestandsnaam (`Bewaren.pdf`) of een patroon met
+  `*` (willekeurige tekst) of `?` (één teken), bijvoorbeeld `protocol-*`.
+- **Verwijderen** (of de Delete-toets): haalt de geselecteerde uitzondering weg.
+
+Sneller: in het simulatievenster met de rechtermuisknop op een bestand klikken (zie hierboven).
+
 ### Wat wordt nooit verwijderd
 
 - Bestanden jonger dan de bewaartermijn. **Leeftijd** = tijd sinds de nieuwste van aanmaak- en
@@ -79,12 +112,13 @@ en PDF's daar niet onbedoeld blijven staan.
 - Als er meer bestanden in aanmerking komen dan het ingestelde maximum (standaard 200): dan wordt er in die
   ronde helemaal niets verwijderd.
 
-### Definitief verwijderen en de Prullenbak
+### De Prullenbak en definitief verwijderen
 
-Standaard verwijdert PraktijkClean bestanden **definitief** (niet via de Prullenbak), zodat patiëntgegevens
-niet alsnog in de Prullenbak blijven staan. Onder "Veiligheid" kunt u ook kiezen voor "Naar de Prullenbak".
+Standaard verplaatst PraktijkClean oude bestanden eerst **naar de Prullenbak** (dan is een vergissing nog terug
+te halen) en leegt het **na nog 1 dag** de Prullenbak, zodat patiëntgegevens daar niet blijven staan. Onder
+"Veiligheid" kunt u ook kiezen voor "Definitief verwijderen" (direct weg, niet via Windows terug te zetten).
 
-Met **"Prullenbak automatisch legen"** (standaard uit) leegt PraktijkClean bij elke automatische opschoning
+Met **"Prullenbak automatisch legen"** (standaard aan, na 1 dag) leegt PraktijkClean bij elke automatische opschoning
 en bij "Nu opruimen" ook de Prullenbak van de gebruiker, op alle lokale schijven. Alleen items die langer
 dan het ingestelde aantal dagen in de Prullenbak staan worden verwijderd (0 = alles, maar nooit iets dat
 korter dan 15 minuten geleden is weggegooid). Let op: dit geldt ook voor bestanden die de gebruiker zelf heeft
@@ -154,8 +188,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 Dit doet achter elkaar:
 1. de **scripttests** onder Windows PowerShell 5.1;
 2. de **C#-tests**;
-3. het maken van **`dist\PraktijkClean.exe`** (één los bestand van ongeveer 200 kB; de werkplek heeft alleen
-   het standaard .NET Framework 4.8 van Windows nodig) plus een SHA-256-controlegetal.
+3. het maken van **`dist\PraktijkClean-<versie>.exe`** (één los bestand van ongeveer 250 kB; de werkplek heeft
+   alleen het standaard .NET Framework 4.8 van Windows nodig) plus een SHA-256-controlegetal. De versie in de
+   bestandsnaam komt uit `<Version>` in `src/PraktijkClean/PraktijkClean.csproj`.
 
 (`-ExecutionPolicy Bypass` geldt alleen voor dat ene bouwproces op uw ontwikkelcomputer.)
 
@@ -180,7 +215,7 @@ maakt een tijdelijke, uitgeschakelde taak `PraktijkClean-TEST-…` in Taakplanne
 ### Bouwen zonder eigen Windows-ontwikkelomgeving: GitHub Actions
 
 Zet het project op GitHub. De workflow in `.github/workflows/build.yml` draait dan bij elke wijziging alle
-tests op een Windows-machine van GitHub en levert `PraktijkClean.exe` op onder **Actions → (laatste run) →
+tests op een Windows-machine van GitHub en levert `PraktijkClean-<versie>.exe` op onder **Actions → (laatste run) →
 Artifacts**. Voor openbare projecten is dit gratis.
 
 ### Wat te doen bij een nieuwe versie
@@ -201,13 +236,13 @@ Kleine aanpassingen kunnen zonder diepe programmeerkennis. Na elke wijziging: `b
 |---|---|
 | Langere teksten en uitleg in de app | `src/PraktijkClean/Texts.cs` |
 | Knopteksten, opbouw van het scherm | `src/PraktijkClean/MainForm.cs`, methode `BuildLayout` en de velden bovenaan |
-| Standaardinstellingen (7 dagen, `.lnk`/`.url`, simulatiemodus) | `src/PraktijkClean.Core/ConfigStore.cs` (`CreateDefault`, `DefaultExclusions`) en `AppConfig.cs` |
+| Standaardinstellingen (1 dag, Prullenbak na 1 dag legen, `.lnk`/`.url`, simulatiemodus) | `src/PraktijkClean.Core/ConfigStore.cs` (`DefaultRetentionDays`, `DefaultRecycleBinDays`, `CreateDefault`, `DefaultExclusions`) |
 | Keuzes in de lijst "Bewaartermijn" | `src/PraktijkClean.Core/RetentionOptions.cs` |
 | Wanneer/hoe de geplande taak draait | `src/PraktijkClean.Core/TaskXmlBuilder.cs` |
 | Wat het script altijd overslaat | `script/cleanup.ps1`, bovenaan (`PcAlwaysSkipNames`, `PcInProgressExtensions`) |
 
-**Voorbeeld — standaard bewaartermijn naar 14 dagen:** in `ConfigStore.cs`, methode `CreateKnownFolder`,
-`RetentionDays = 7` wijzigen in `RetentionDays = 14`. Pas ook de test `StandaardConfiguratieIsGeldigEnVeilig`
+**Voorbeeld — standaard bewaartermijn naar 14 dagen:** in `ConfigStore.cs` `DefaultRetentionDays = 1`
+wijzigen in `DefaultRetentionDays = 14`. Pas ook de test `StandaardConfiguratieIsGeldigEnVeilig`
 in `tests/PraktijkClean.Tests/ConfigTests.cs` aan; die controleert bewust de standaardwaarde.
 
 **Voorbeeld — een tekst in de app wijzigen:** zoek de tekst op in `Texts.cs` (of `MainForm.cs`) en pas hem
@@ -255,7 +290,7 @@ het draait niet bij stroomuitval, slaapstand of hard uitzetten.
 
 ### Deïnstalleren
 
-In de app: **PraktijkClean volledig verwijderen…**. Daarna kan `PraktijkClean.exe` zelf worden weggegooid.
+In de app: **PraktijkClean volledig verwijderen…**. Daarna kan `PraktijkClean-<versie>.exe` zelf worden weggegooid.
 Lukt dat niet meer (bijv. app kwijt): verwijder in Taakplanner de taak `PraktijkClean - <gebruiker>` en
 daarna de map `%LOCALAPPDATA%\PraktijkClean`.
 

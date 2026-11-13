@@ -5,9 +5,9 @@
   "paused": false,
   "maxFilesPerRun": 200,
   "minimumAgeMinutes": 15,
-  "deleteMode": "permanent",
-  "emptyRecycleBin": false,
-  "recycleBinRetentionDays": 7,
+  "deleteMode": "recycleBin",
+  "emptyRecycleBin": true,
+  "recycleBinRetentionDays": 1,
   "schedule": {
     "daily": true,
     "dailyTime": "12:30",
@@ -22,7 +22,7 @@
       "knownFolder": "Desktop",
       "path": null,
       "expectedPath": "C:\\Users\\voorbeeld\\Desktop",
-      "retentionDays": 7,
+      "retentionDays": 1,
       "recurse": false,
       "allowNetworkOrSync": false,
       "exclusions": {
@@ -40,7 +40,7 @@
       "knownFolder": "Downloads",
       "path": null,
       "expectedPath": "C:\\Users\\voorbeeld\\Downloads",
-      "retentionDays": 7,
+      "retentionDays": 1,
       "recurse": false,
       "allowNetworkOrSync": false,
       "exclusions": {

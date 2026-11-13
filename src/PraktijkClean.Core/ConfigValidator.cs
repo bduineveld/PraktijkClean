@@ -86,7 +86,7 @@ public static class ConfigValidator
             ValidateList(ex.Files, $"{label}: uitgesloten bestand", IsValidRelative, errors);
             ValidateList(ex.Subfolders, $"{label}: uitgesloten submap", IsValidRelative, errors);
             ValidateList(ex.Patterns, $"{label}: patroon", IsValidPattern, errors);
-            ValidateList(ex.Extensions, $"{label}: extensie", s => ExtensionRegex.IsMatch(s), errors);
+            ValidateList(ex.Extensions, $"{label}: extensie", IsValidExtension, errors);
         }
         return errors;
     }
@@ -98,6 +98,8 @@ public static class ConfigValidator
         if (!Regex.IsMatch(text, "^[0-2][0-9]:[0-5][0-9]$")) return false;
         return TimeSpan.TryParseExact(text, @"hh\:mm", CultureInfo.InvariantCulture, out time) && time < TimeSpan.FromHours(24);
     }
+
+    public static bool IsValidExtension(string s) => s is not null && ExtensionRegex.IsMatch(s);
 
     public static bool IsValidPattern(string s) =>
         !string.IsNullOrWhiteSpace(s) && s.Length <= 260 && s.IndexOfAny(PatternForbidden) < 0 && !s.Any(char.IsControl);
