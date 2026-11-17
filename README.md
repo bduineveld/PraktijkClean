@@ -37,7 +37,7 @@ en PDF's daar niet onbedoeld blijven staan.
 
 1. Download `PraktijkClean-<versie>.exe` (bijvoorbeeld `PraktijkClean-1.3.0.exe`) van de pagina
    [Releases](https://github.com/bduineveld/PraktijkClean/releases/latest) (of uit de map [`dist`](dist)).
-   Het is één bestand van ongeveer 260 kB; er hoeft niets bij geïnstalleerd te worden (het gebruikt het
+   Het is één bestand van ongeveer 500 kB; er hoeft niets bij geïnstalleerd te worden (het gebruikt het
    .NET Framework 4.8 dat standaard in Windows 10 en 11 zit).
 2. Start het programma **als de gebruiker van die werkplek** (niet "Als administrator uitvoeren").
 3. Ziet u "Windows heeft uw pc beschermd"? Klik op **Meer info → Toch uitvoeren**. Dat komt doordat het
@@ -213,7 +213,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 Dit doet achter elkaar:
 1. de **scripttests** onder Windows PowerShell 5.1;
 2. de **C#-tests**;
-3. het maken van **`dist\PraktijkClean-<versie>.exe`** (één los bestand van ongeveer 250 kB; de werkplek heeft
+3. het maken van **`dist\PraktijkClean-<versie>.exe`** (één los bestand van ongeveer 500 kB; de werkplek heeft
    alleen het standaard .NET Framework 4.8 van Windows nodig) plus een SHA-256-controlegetal. De versie in de
    bestandsnaam komt uit `<Version>` in `src/PraktijkClean/PraktijkClean.csproj`.
 

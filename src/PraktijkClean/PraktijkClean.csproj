@@ -13,6 +13,8 @@
     <AssemblyName>PraktijkClean</AssemblyName>
     <RootNamespace>PraktijkClean</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- App-icoon (Startmenu, taakbalk, Instellingen > Apps); bron en losse PNG's staan in de map icon. -->
+    <ApplicationIcon>..\..\icon\PraktijkClean.ico</ApplicationIcon>
     <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
     <GenerateSupportedRuntime>false</GenerateSupportedRuntime>
 
@@ -37,6 +39,9 @@
   <ItemGroup>
     <!-- Het opschoonscript wordt in de .exe ingebakken en bij 'Opslaan' weggeschreven. -->
     <EmbeddedResource Include="..\..\script\cleanup.ps1" LogicalName="PraktijkClean.cleanup.ps1" />
+    <!-- Iconen: het app-icoon voor titelbalk en Alt+Tab (alleen 16-64 px, uit icon\PraktijkClean.ico) en het systeemvak-icoon (zonder schildje) per formaat. -->
+    <EmbeddedResource Include="Resources\app-venster.ico" LogicalName="PraktijkClean.app.ico" />
+    <EmbeddedResource Include="Resources\tray-*.png" LogicalName="PraktijkClean.%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

@@ -231,7 +231,7 @@ internal sealed class MainForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(900, 680);
         MinimumSize = new Size(780, 580);
-        try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (ArgumentException) { }
+        if (AppIcons.App is { } appIcon) Icon = appIcon;
         foreach (var o in RetentionOptions.All) _cmbRetention.Items.Add(o);
 
         // ---- Kop: status links, hoofdknop en menu rechts

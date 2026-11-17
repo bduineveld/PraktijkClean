@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -134,41 +133,8 @@ internal sealed class TrayContext : ApplicationContext
     private Icon IconFor(StatusKind kind)
     {
         if (_icons.TryGetValue(kind, out var cached)) return cached;
-        int size = SystemInformation.SmallIconSize.Width;
-        using var bmp = new Bitmap(size, size);
-        using (var g = Graphics.FromImage(bmp))
-        {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(Color.Transparent);
-            float pad = size / 16f;
-            var circle = new RectangleF(pad, pad, size - 2 * pad - 1, size - 2 * pad - 1);
-            using (var fill = new SolidBrush(StatusInfo.IconColor(kind))) g.FillEllipse(fill, circle);
-            using (var edge = new Pen(Color.White, Math.Max(1f, size / 16f))) g.DrawEllipse(edge, circle);
-
-            // Een eenvoudig wit teken in de cirkel, zodat de status ook zonder kleurenzien herkenbaar is.
-            using var mark = new Pen(Color.White, Math.Max(1.5f, size / 8f)) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-            float s = size;
-            switch (kind)
-            {
-                case StatusKind.On:          // vinkje
-                    g.DrawLines(mark, new[] { new PointF(s * .30f, s * .52f), new PointF(s * .45f, s * .67f), new PointF(s * .72f, s * .36f) });
-                    break;
-                case StatusKind.Paused:      // twee streepjes
-                    g.DrawLine(mark, s * .40f, s * .33f, s * .40f, s * .67f);
-                    g.DrawLine(mark, s * .60f, s * .33f, s * .60f, s * .67f);
-                    break;
-                case StatusKind.Problem:     // uitroepteken
-                    g.DrawLine(mark, s * .5f, s * .28f, s * .5f, s * .56f);
-                    g.DrawLine(mark, s * .5f, s * .70f, s * .5f, s * .72f);
-                    break;
-                case StatusKind.Simulation:  // open rondje
-                    g.DrawEllipse(mark, s * .36f, s * .36f, s * .28f, s * .28f);
-                    break;
-                default:                     // streepje
-                    g.DrawLine(mark, s * .33f, s * .5f, s * .67f, s * .5f);
-                    break;
-            }
-        }
+        // Beeldscherm met bezem (app-icoon zonder schildje) en een statusbolletje linksonder; zie AppIcons.
+        using var bmp = AppIcons.Tray(kind, SystemInformation.SmallIconSize.Width);
         IntPtr handle = bmp.GetHicon();
         var icon = (Icon)Icon.FromHandle(handle).Clone();
         DestroyIcon(handle);

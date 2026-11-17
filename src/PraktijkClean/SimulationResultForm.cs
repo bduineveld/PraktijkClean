@@ -39,6 +39,7 @@ internal sealed class SimulationResultForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         Font = UiFont.Normal;
         Text = "Simulatie – er is niets verwijderd";
+        if (AppIcons.App is { } appIcon) Icon = appIcon;
         StartPosition = FormStartPosition.CenterParent;
         ClientSize = new Size(900, 600);
         MinimumSize = new Size(700, 450);

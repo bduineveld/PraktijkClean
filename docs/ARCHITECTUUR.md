@@ -55,13 +55,16 @@ src/PraktijkClean/               De beheerapp (vensters en teksten)
    AppUninstall.cs               Volledig verwijderen (menu of /uninstall vanuit Instellingen > Apps)
    StatusInfo.cs                 Bepaalt de status (aan/simulatie/pauze/probleem) voor balk en icoon
    TrayContext.cs                Het icoon in het systeemvak (PraktijkClean-<versie>.exe /tray)
+   AppIcons.cs                   App-icoon voor de vensters en systeemvak-icoon met statusbolletje
+   Resources/                    app-venster.ico (16-64 px) en tray-N.png (systeemvak-icoon per formaat)
+icon/                            Bron van het app-icoon: PraktijkClean.ico (16-256 px, in de exe) en de PNG's
    TrayIntegration.cs            Icoon aan/uit: kopie van de exe, opstartitem, afsluiten
 tests/Script/Run-ScriptTests.ps1 Tests voor het script (zonder externe modules)
 tests/PraktijkClean.Tests/       Tests voor de C#-logica (zonder externe pakketten)
 ```
 
 De app is gebouwd voor **.NET Framework 4.8**, dat in Windows 10 (vanaf 1903) en Windows 11 standaard
-aanwezig is. Daardoor is `PraktijkClean-<versie>.exe` één klein bestand (ongeveer 270 kB) zonder meegeleverde runtime.
+aanwezig is. Daardoor is `PraktijkClean-<versie>.exe` één klein bestand (ongeveer 500 kB, waarvan ruim de helft iconen) zonder meegeleverde runtime.
 De code van `PraktijkClean.Core` wordt bij het bouwen in de exe zelf opgenomen (geen losse dll), JSON wordt
 gelezen en geschreven met het ingebouwde `DataContractJsonSerializer` (`Compat.cs`), en schermschaal (DPI)
 staat in `app.manifest` (systeembreed; bij verschillende schermen schaalt Windows het venster bij).
@@ -233,8 +236,10 @@ Standaard uit; aan te zetten via **☰ Meer → Icoon rechtsonder in het systeem
   (per gebruiker, geen administratorrechten nodig), zodat het icoon bij elke aanmelding start. Aan- en uitzetten
   gebeurt op de achtergrond, zodat het venster niet blokkeert.
 - leest het icoon elke 20 seconden `config.json`, `status.json`, het logboek en de geplande taak, en toont
-  groen (aan), blauw (simulatie), oranje (gepauzeerd), rood (aan, maar de taak ontbreekt of staat uit) of grijs
-  (niet ingesteld), met een eigen teken per status. Het icoon verwijdert zelf nooit iets; het kan alleen de app
+  het app-icoon (beeldscherm met bezem, zonder schildje) met linksonder een statusbolletje: groen (aan),
+  blauw (simulatie), oranje (gepauzeerd), rood (aan, maar de taak ontbreekt of staat uit) of grijs (niet
+  ingesteld), met een eigen wit teken per status. Het bolletje wordt op het kleine-icoonformaat van Windows
+  getekend (16 px bij 100 % tot 32 px bij 200 %), op vooraf verkleinde beelden uit `Resources\tray-N.png`. Het icoon verwijdert zelf nooit iets; het kan alleen de app
   openen, pauzeren/hervatten en zichzelf verbergen.
 - sluit de app het icoon even af als de geïnstalleerde exe wordt bijgewerkt, via een benoemd signaal
   (`Local\PraktijkClean-TrayExit`), en start het daarna opnieuw.
