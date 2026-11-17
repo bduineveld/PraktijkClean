@@ -130,6 +130,9 @@ function Test-Case([string]$Name, [scriptblock]$Body) {
             $script:Skipped++
             Write-Host "  [SKIP]  $Name ($($msg.Substring(5).Trim()))" -ForegroundColor Yellow
         } else {
+            # Eerste regel van de stack: waar het misging (bij een fout in het script zelf).
+            $where = ($_.ScriptStackTrace -split "`n")[0]
+            if ($msg -notmatch 'verwacht|Verwacht|Bestand ') { $msg += " ($where)" }
             $script:Failed++
             $script:Failures.Add("$Name : $msg")
             Write-Host "  [FOUT]  $Name : $msg" -ForegroundColor Red
@@ -670,7 +673,73 @@ try {
         Assert-True ($json -notmatch 'GEHEIM') 'geen naam in status'
         Assert-True ($json -match '"recycleBin"') 'prullenbak in status'
     }
+    Test-Case 'Geleegde Prullenbak-items komen in de lijst verwijderde bestanden' {
+        $bin = New-FakeBin
+        $null = New-FakeRecycleItem $bin 'OUD009.pdf' 30 'C:\Users\test\Desktop\geleegd.pdf'
+        $r = Invoke-Test (New-TestConfig @(New-FolderSpec (New-TestDir)) @{ emptyRecycleBin = $true; recycleBinRetentionDays = 7; deletedFilesListDays = 7 })
+        $e = $r.DeletedList.ToArray()
+        Assert-Equal 1 $e.Count 'een regel'
+        Assert-Equal 'prullenbak-geleegd' $e[0].Kind 'soort'
+        Assert-Equal 'C:\Users\test\Desktop\geleegd.pdf' $e[0].Path 'oorspronkelijk pad'
+    }
     $script:PcRecycleBinRootsOverride = @()
+
+    # ---------------------------------------------------------------- Lijst verwijderde bestanden
+    Write-Host "`nLijst verwijderde bestanden"
+    Test-Case 'Opruimen zet namen in de lijst; simulatie niet' {
+        $d = New-TestDir
+        $f1 = New-TestFile $d 'Uitslag-Jansen.pdf' 30 100
+        $null = New-TestFile $d 'nieuw.pdf' 1
+        $cfg = New-TestConfig @(New-FolderSpec $d) @{ deletedFilesListDays = 30; deleteMode = 'permanent' }
+        $sim = Invoke-Test $cfg 'Simulate' $false
+        Assert-Equal 0 $sim.DeletedList.Count 'simulatie: geen regels'
+        Assert-Equal 30 $sim.DeletedListDays 'termijn gelezen'
+        $r = Invoke-Test $cfg
+        Assert-Gone $f1
+        $e = $r.DeletedList.ToArray()
+        Assert-Equal 1 $e.Count 'een regel'
+        Assert-Equal 'definitief' $e[0].Kind 'soort'
+        Assert-Equal $f1 $e[0].Path 'volledig pad'
+        Assert-Equal 100 $e[0].Size 'grootte'
+        Assert-Equal 'test' $e[0].FolderId 'map-id'
+        $logs = New-TestDir 'logs'
+        Update-PcDeletedList -LogDir $logs -Days 30 -Entries $r.DeletedList -NowUtc ([DateTime]::UtcNow)
+        $lines = [System.IO.File]::ReadAllLines((Join-Path $logs 'verwijderde-bestanden.log'))
+        Assert-Equal 1 $lines.Count 'regel geschreven'
+        Assert-True ($lines[0] -match '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\tdefinitief\t100\ttest\t.*Uitslag-Jansen\.pdf$') 'vaste opbouw (gelezen door DeletedFilesList.cs)'
+    }
+    Test-Case 'Lijst wordt ingekort; termijn 0 wist hem' {
+        $logs = New-TestDir 'logs'
+        $path = Join-Path $logs 'verwijderde-bestanden.log'
+        $now = [DateTime]::UtcNow
+        $fmt = 'yyyy-MM-ddTHH:mm:ssZ'
+        $inv = [System.Globalization.CultureInfo]::InvariantCulture
+        [System.IO.File]::WriteAllLines($path, @(
+            "$($now.AddDays(-40).ToString($fmt, $inv))`tdefinitief`t1`ttest`tC:\a\oud.pdf",
+            "$($now.AddDays(-2).ToString($fmt, $inv))`tdefinitief`t1`ttest`tC:\a\recent.pdf",
+            'kapotte regel'))
+        Update-PcDeletedList -LogDir $logs -Days 30 -Entries @() -NowUtc $now
+        $lines = [System.IO.File]::ReadAllLines($path)
+        Assert-Equal 1 $lines.Count 'alleen recente regel'
+        Assert-True ($lines[0].EndsWith('recent.pdf')) 'recente regel blijft'
+        $entry = [pscustomobject]@{ Kind = 'prullenbak'; Size = 5; FolderId = 'test'; Path = "C:\a\raar`tnaam.pdf" }
+        Update-PcDeletedList -LogDir $logs -Days 30 -Entries @($entry) -NowUtc $now
+        $lines = [System.IO.File]::ReadAllLines($path)
+        Assert-Equal 2 $lines.Count 'regel toegevoegd'
+        Assert-Equal 5 $lines[1].Split("`t").Count 'tab in naam vervangen'
+        Update-PcDeletedList -LogDir $logs -Days 0 -Entries @($entry) -NowUtc $now
+        Assert-True (-not [System.IO.File]::Exists($path)) 'termijn 0: lijst gewist en niets toegevoegd'
+    }
+    Test-Case 'Ontbrekende termijn = geen lijst; ongeldige termijn = configuratiefout' {
+        $d = New-TestDir
+        $r = Invoke-Test (New-TestConfig @(New-FolderSpec $d)) 'Simulate' $false
+        Assert-Equal 0 $r.DeletedListDays 'ontbreekt = 0'
+        $r = Invoke-Test (New-TestConfig @(New-FolderSpec $d) @{ deletedFilesListDays = 400 }) 'Simulate' $false
+        Assert-Equal 1 $r.ExitCode 'te lang'
+        Assert-True ($null -eq $r.DeletedListDays) 'bij configuratiefout de lijst niet aanraken'
+        $r = Invoke-Test (New-TestConfig @(New-FolderSpec $d) @{ deletedFilesListDays = '7' }) 'Simulate' $false
+        Assert-Equal 1 $r.ExitCode 'tekst in plaats van getal'
+    }
 
     # ---------------------------------------------------------------- Logboek en uitvoer
     Write-Host "`nLogboek, status en JSON-uitvoer (end-to-end, apart proces)"

@@ -19,6 +19,7 @@ Een voorbeeld staat in [`script/config.example.json`](../script/config.example.j
 | `deleteMode` | `"permanent"` / `"recycleBin"` | `"recycleBin"` | Naar de Prullenbak of definitief verwijderen. |
 | `emptyRecycleBin` | true/false | `true` | De Prullenbak van deze gebruiker (alle lokale schijven) automatisch legen. Alleen wanneer er ook verwijderd mag worden (niet in simulatiemodus, niet bij pauze). Mag ontbreken (= uit). |
 | `recycleBinRetentionDays` | getal 0–3650 | `1` | Alleen items die langer dan dit aantal dagen in de Prullenbak staan. `0` = alles (met inachtneming van `minimumAgeMinutes`). **Verplicht** als `emptyRecycleBin` `true` is. |
+| `deletedFilesListDays` | getal 0–365 | `7` | Hoe lang de namen van verwijderde bestanden in `logs\verwijderde-bestanden.log` blijven staan (in de app: *Namen bewaren*). `0` = geen lijst bijhouden; een bestaande lijst wordt dan gewist. Mag ontbreken (= `0`). |
 | `schedule.daily` | true/false | `true` | Dagelijks uitvoeren. |
 | `schedule.dailyTime` | `"UU:MM"` | `"12:30"` | Tijdstip (24-uursnotatie, lokale tijd). |
 | `schedule.atLogon` | true/false | `true` | Uitvoeren bij aanmelden (2 minuten na aanmelden). |
@@ -26,7 +27,8 @@ Een voorbeeld staat in [`script/config.example.json`](../script/config.example.j
 
 De standaardwaarden zijn die van een nieuwe installatie (Bureaublad en Downloads met `retentionDays` 1). Ontbreekt
 in een bestaande `config.json` een veld, dan geldt de voorzichtige waarde: `deleteMode` `"permanent"`,
-`emptyRecycleBin` `false`, `recycleBinRetentionDays` `7`, `retentionDays` `7`.
+`emptyRecycleBin` `false`, `recycleBinRetentionDays` `7`, `retentionDays` `7`. Ontbreekt `deletedFilesListDays`,
+dan houdt het script geen lijst bij; de app vult bij de eerstvolgende *Opslaan* `7` in.
 
 `schedule` wordt alleen door de app gebruikt (voor de geplande taak). Wijzigt u `schedule` met de hand,
 klik dan in de app op "Opslaan" of kies "☰ Meer → Problemen oplossen" om de taak bij te werken.

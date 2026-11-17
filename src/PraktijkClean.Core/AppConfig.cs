@@ -33,6 +33,7 @@ public sealed class AppConfig
         DeleteMode = DeleteModes.Permanent;
         EmptyRecycleBin = false;
         RecycleBinRetentionDays = 7;
+        DeletedFilesListDays = 7;
         Schedule = new ScheduleSettings();
         Folders = new List<FolderSettings>();
     }
@@ -72,10 +73,17 @@ public sealed class AppConfig
     [DataMember(Name = "recycleBinRetentionDays", Order = 9)]
     public int RecycleBinRetentionDays { get; set; }
 
-    [DataMember(Name = "schedule", Order = 10)]
+    /// <summary>
+    /// Hoe lang de namen van verwijderde bestanden in logs\verwijderde-bestanden.log blijven staan (dagen).
+    /// 0 = geen lijst bijhouden. Ontbreekt het veld in een oudere config.json, dan houdt het script geen lijst bij.
+    /// </summary>
+    [DataMember(Name = "deletedFilesListDays", Order = 10)]
+    public int DeletedFilesListDays { get; set; }
+
+    [DataMember(Name = "schedule", Order = 11)]
     public ScheduleSettings Schedule { get; set; } = null!;
 
-    [DataMember(Name = "folders", Order = 11)]
+    [DataMember(Name = "folders", Order = 12)]
     public List<FolderSettings> Folders { get; set; } = null!;
 }
 

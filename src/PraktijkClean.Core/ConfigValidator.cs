@@ -34,6 +34,8 @@ public static class ConfigValidator
             errors.Add("Kies of bestanden naar de Prullenbak gaan of definitief worden verwijderd.");
         if (config.RecycleBinRetentionDays is < 0 or > 3650)
             errors.Add("De termijn voor het legen van de Prullenbak moet tussen 0 en 3650 dagen liggen.");
+        if (config.DeletedFilesListDays is < 0 or > DeletedFilesList.MaxDays)
+            errors.Add($"De bewaartermijn van de lijst met verwijderde bestanden moet tussen 0 en {DeletedFilesList.MaxDays} dagen liggen.");
 
         if (config.Schedule is null)
             errors.Add("Planning ontbreekt.");

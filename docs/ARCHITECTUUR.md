@@ -22,6 +22,7 @@ Alles staat per gebruiker in `%LOCALAPPDATA%\PraktijkClean\`:
 | `config.json` | Alle instellingen. Zie [CONFIGURATIE.md](CONFIGURATIE.md). |
 | `status.json` | Resultaat van de laatste uitvoering (aantallen, geen bestandsnamen). |
 | `logs\praktijkclean.log` | Eén regel per uitvoering, zonder bestandsnamen of paden. Rouleert bij 512 kB. |
+| `logs\verwijderde-bestanden.log` | Alleen als `deletedFilesListDays` > 0: per verwijderd bestand één regel met tijdstip (UTC), soort, grootte, map-id en volledig pad (tab-gescheiden). Regels ouder dan de termijn wist het script bij elke uitvoering (de app ook direct na opslaan); maximaal 50.000 regels. |
 
 De beheerapp hoeft na het opslaan niet open te blijven: de geplande taak start het script zelfstandig.
 
@@ -40,6 +41,7 @@ src/PraktijkClean.Core/          Logica zonder venster: configuratie, validatie,
    PathRules.cs                  Controle van gekozen mappen in de app
    Exclusions.cs                 Uitzonderingen per map toevoegen/verwijderen (zelfde regels als het script)
    LogSummary.cs                 Telt uit het logboek wat er in de afgelopen dagen is opgeruimd
+   DeletedFilesList.cs           Lijst verwijderde bestanden lezen, inkorten en wissen
    Compat.cs                     JSON lezen/schrijven en hulpmiddelen voor .NET Framework 4.8
    Windows/                      Windows-specifiek: Known Folders, Taakplanner (COM), gebruiker
 src/PraktijkClean/               De beheerapp (vensters en teksten)
@@ -166,8 +168,10 @@ datums. Zie [BEPERKINGEN.md](BEPERKINGEN.md).
    "Nu opruimen" vereist de expliciete schakelaar `-ConfirmedByUser`, die alleen na een bevestigingsdialoog
    wordt meegegeven.
 10. **Installatie/configuratie verwijdert nooit iets**; de app zelf verwijdert nooit gebruikersbestanden.
-11. **Logboek** bevat nooit bestandsnamen, paden of foutteksten van Windows (die kunnen paden bevatten);
-   alleen aantallen en het soort fout.
+11. **Logboek** en `status.json` bevatten nooit bestandsnamen, paden of foutteksten van Windows (die kunnen
+   paden bevatten); alleen aantallen en het soort fout. Bestandsnamen staan alleen in de aparte lijst
+   verwijderde bestanden, die de gebruiker zelf aanzet (standaard 1 week) en die zichzelf inkort. Bij een
+   ongeldige configuratie raakt het script die lijst niet aan.
 
 ## Verwijderen: Prullenbak of definitief
 
@@ -196,7 +200,7 @@ zodat items op **tijd in de Prullenbak** worden geselecteerd; `SHEmptyRecycleBin
   links) worden nooit gevolgd**: alleen de koppeling zelf wordt verwijderd.
 - Eerst de `$R`-inhoud, daarna het `$I`-bestand; mislukt de inhoud, dan blijft het item zichtbaar in de Prullenbak.
 - Logboek en status bevatten alleen aantallen; de oorspronkelijke paden verschijnen alleen in het
-  simulatievenster.
+  simulatievenster en (als die aan staat) in de lijst verwijderde bestanden, als "Prullenbak geleegd".
 
 ## Installatie als Windows-app (per gebruiker)
 

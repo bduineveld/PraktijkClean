@@ -106,6 +106,16 @@ internal sealed class MainForm : Form
     private readonly Label _lblNextRun = new() { AutoSize = true };
     private readonly Label _lblWeek = new() { AutoSize = true };
     private readonly Button _btnLog = new() { Text = "Logboek openen", AutoSize = true };
+    private readonly Label _lblDeletedInfo = new() { AutoSize = true, Margin = new Padding(3, 0, 3, 6) };
+    private readonly TextBox _txtDeletedFilter = new() { Width = 220 };
+    private readonly ListView _lstDeleted = new()
+    {
+        View = View.Details, FullRowSelect = true, HideSelection = false, HeaderStyle = ColumnHeaderStyle.Nonclickable, Height = 220,
+    };
+    private readonly ComboBox _cmbListDays = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
+    private readonly Button _btnClearList = new() { Text = "Lijst wissen…", AutoSize = true };
+    private List<DeletedFilesList.Entry> _deleted = new();
+    private string _deletedStamp = "";
 
     // ---------------------------------------------------------------- Onderbalk
     private readonly Button _btnSimulate = new() { Text = "Simulatie bekijken…", AutoSize = true, Padding = new Padding(6, 2, 6, 2) };
@@ -300,9 +310,18 @@ internal sealed class MainForm : Form
         AddRow(plan, _lnkDestroy);
         AddRow(plan, Hint("Wijzigingen op dit tabblad en bij Mappen worden pas actief als u op 'Opslaan' klikt.", top: 14));
 
-        // ---- Tabblad Logboek
+        // ---- Tabblad Logboek: eerst wat er is verwijderd, daarna de controles
         var log = Grid();
-        AddRow(log, Heading("Laatste controle", top: 0));
+        AddRow(log, Heading("Verwijderde bestanden", top: 0));
+        AddRow(log, Wrap(_lblDeletedInfo));
+        AddRow(log, Row(Caption("Zoeken:"), _txtDeletedFilter));
+        AddRow(log, _lstDeleted);
+        _lstDeleted.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        AddRow(log, Row(Caption("Namen bewaren:"), _cmbListDays, _btnClearList));
+        _cmbListDays.Margin = new Padding(3, 4, 12, 3);
+        AddRow(log, Hint("Na de gekozen termijn worden de namen automatisch uit deze lijst gewist. Dubbelklik op een bestand " +
+                         "dat naar de Prullenbak is gegaan om de Prullenbak te openen (daar kunt u het terugzetten)."));
+        AddRow(log, Heading("Laatste controle"));
         AddRow(log, Wrap(_lblLastRun));
         AddRow(log, Wrap(_lblLastResult));
         AddRow(log, Heading("Planning"));
@@ -311,7 +330,8 @@ internal sealed class MainForm : Form
         AddRow(log, Heading("Afgelopen 7 dagen"));
         AddRow(log, Wrap(_lblWeek));
         AddRow(log, _btnLog);
-        AddRow(log, Hint("Het logboek bevat per controle alleen aantallen en groottes, nooit bestandsnamen."));
+        AddRow(log, Hint("Het logboek bevat per controle alleen aantallen en groottes, nooit bestandsnamen. De namen staan alleen " +
+                         "in de lijst hierboven, zo lang als u heeft gekozen."));
 
         _tabs.TabPages.Add(Page("Mappen", folders));
         _tabs.TabPages.Add(Page("Planning en veiligheid", Scroller(plan, padding: 16)));
@@ -341,15 +361,25 @@ internal sealed class MainForm : Form
 
         _lstExclusions.Columns.Add("Soort", 90);
         _lstExclusions.Columns.Add("Wordt overgeslagen", 300);
+        _lstDeleted.Columns.Add("Wanneer", 120);
+        _lstDeleted.Columns.Add("Bestand", 240);
+        _lstDeleted.Columns.Add("Map", 240);
+        _lstDeleted.Columns.Add("Wat er gebeurde", 150);
+        foreach (var o in DeletedFilesList.Options) _cmbListDays.Items.Add(o.Label);
         Load += (_, _) =>
         {
             // Kolombreedtes en regelhoogte schalen niet vanzelf mee met de Windows-schaal.
             _lstExclusions.Columns[0].Width = UiFont.Px(90);
             FitExclusionColumns();
+            _lstDeleted.Height = UiFont.Px(220);
+            _lstDeleted.Columns[0].Width = UiFont.Px(120);
+            _lstDeleted.Columns[3].Width = UiFont.Px(150);
+            FitDeletedColumns();
             _lstFolders.ItemHeight = Math.Min(255, (int)(_lstFolders.Font.Height * 2.7));
             FitWrapLabels();
         };
         _lstExclusions.Resize += (_, _) => { if (IsHandleCreated) BeginInvoke(new Action(FitExclusionColumns)); };
+        _lstDeleted.Resize += (_, _) => { if (IsHandleCreated) BeginInvoke(new Action(FitDeletedColumns)); };
         Resize += (_, _) => FitWrapLabels();
         _tabs.SelectedIndexChanged += (_, _) => FitWrapLabels();
 
@@ -361,6 +391,8 @@ internal sealed class MainForm : Form
         tips.SetToolTip(_chkEmptyBin, "Leegt ook de Prullenbak van deze gebruiker, inclusief zelf weggegooide bestanden.");
         tips.SetToolTip(_btnExclAdd, "Een bestand, submap, extensie (.docx) of patroon (protocol-*) dat nooit verwijderd mag worden.");
         tips.SetToolTip(_btnLog, "Opent het logboek in Kladblok.");
+        tips.SetToolTip(_cmbListDays, "Hoe lang de namen van verwijderde bestanden in deze lijst blijven staan. Geldt na 'Opslaan'.");
+        tips.SetToolTip(_btnClearList, "Wist de namen uit deze lijst. De bestanden zelf veranderen hierdoor niet.");
         tips.SetToolTip(_numMaxFiles, "Komen er meer bestanden in aanmerking, dan wordt er uit voorzorg niets verwijderd.");
 
         // Knoppen passen zich aan hun tekst aan. Standaard mogen ze alleen groeien ("GrowOnly"); dan maakt de
@@ -517,6 +549,10 @@ internal sealed class MainForm : Form
         _btnPrimary.Click += async (_, _) => await OnPrimary();
         _btnMenu.Click += (_, _) => _menu.Show(_btnMenu, new Point(_btnMenu.Width - _menu.PreferredSize.Width, _btnMenu.Height));
         _btnLog.Click += (_, _) => OnOpenLog();
+        _cmbListDays.SelectedIndexChanged += (_, _) => MarkDirty();
+        _btnClearList.Click += (_, _) => OnClearDeletedList();
+        _txtDeletedFilter.TextChanged += (_, _) => FillDeletedList();
+        _lstDeleted.DoubleClick += (_, _) => OnDeletedDoubleClick();
 
         _miCleanNow.Click += async (_, _) => await RunBusy("Bezig met opruimen…", OnCleanNow);
         _miPause.Click += async (_, _) => await RunBusy("Bezig…", OnPauseToggle);
@@ -583,6 +619,7 @@ internal sealed class MainForm : Form
             _chkEmptyBin.Checked = _config.EmptyRecycleBin;
             _numBinDays.Value = Math.Min(Math.Max(_config.RecycleBinRetentionDays, 0), 3650);
             _numBinDays.Enabled = _chkEmptyBin.Checked;
+            _cmbListDays.SelectedIndex = DeletedFilesList.OptionIndexFor(_config.DeletedFilesListDays);
             UpdateDeleteNote();
         }
         finally { _loadingUi = false; }
@@ -600,6 +637,7 @@ internal sealed class MainForm : Form
         _config.DeleteMode = _rbPermanent.Checked ? DeleteModes.Permanent : DeleteModes.RecycleBin;
         _config.EmptyRecycleBin = _chkEmptyBin.Checked;
         _config.RecycleBinRetentionDays = (int)_numBinDays.Value;
+        if (_cmbListDays.SelectedIndex >= 0) _config.DeletedFilesListDays = DeletedFilesList.Options[_cmbListDays.SelectedIndex].Days;
     }
 
     private FolderSettings? SelectedFolder => _lstFolders.SelectedItem as FolderSettings;
@@ -778,6 +816,7 @@ internal sealed class MainForm : Form
             return true;
         }
         _dirty = false;
+        PruneDeletedList();
         StartRegistration(firstInstall);
         if (showConfirmation && !firstInstall)
             Flash(TaskXmlBuilder.HasAnyTrigger(_config.Schedule)
@@ -881,6 +920,104 @@ internal sealed class MainForm : Form
         Process.Start(new ProcessStartInfo("notepad.exe", "\"" + _layout.LogPath + "\"") { UseShellExecute = false })?.Dispose();
     }
 
+    // =====================================================================================
+    // Lijst verwijderde bestanden
+    // =====================================================================================
+
+    /// <summary>Leest de lijst opnieuw als het bestand of de termijn is veranderd (niet bij elke klik in het venster).</summary>
+    private void LoadDeletedList(bool installed)
+    {
+        int days = installed ? _config.DeletedFilesListDays : 0;
+        var fi = new FileInfo(_layout.DeletedListPath);
+        string stamp = $"{days}|{(fi.Exists ? fi.LastWriteTimeUtc.Ticks + "/" + fi.Length : "-")}|{DateTime.Today:yyyyMMdd}";
+        if (stamp != _deletedStamp)
+        {
+            _deletedStamp = stamp;
+            _deleted = DeletedFilesList.Load(_layout.DeletedListPath, days, DateTime.UtcNow);
+            FillDeletedList();
+        }
+        _btnClearList.Enabled = !_busy && (_deleted.Count > 0 || fi.Exists);
+        string period = DeletedFilesList.PeriodText(days);
+        _lblDeletedInfo.Text = !installed
+            ? "Hier ziet u straks welke bestanden PraktijkClean heeft opgeruimd."
+            : days <= 0
+            ? "De namen van verwijderde bestanden worden niet bijgehouden. Kies hieronder een termijn en klik op 'Opslaan'."
+            : _deleted.Count == 0
+            ? $"In {period} is er niets verwijderd (of de lijst is gewist)."
+            : $"{_deleted.Count} bestand(en) verwijderd in {period} ({Format.Bytes(_deleted.Sum(e => e.Size))}). Nieuwste bovenaan.";
+    }
+
+    private void FillDeletedList()
+    {
+        string filter = _txtDeletedFilter.Text.Trim();
+        var shown = filter.Length == 0 ? _deleted
+            : _deleted.Where(e => e.FullPath.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+        _lstDeleted.BeginUpdate();
+        try
+        {
+            _lstDeleted.Items.Clear();
+            foreach (var e in shown.Take(5000))
+            {
+                var item = new ListViewItem(e.DeletedUtc.ToLocalTime().ToString("dd-MM-yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture)) { Tag = e };
+                item.SubItems.Add(e.FileName);
+                item.SubItems.Add(DeletedFolderText(e));
+                item.SubItems.Add(e.KindText);
+                item.ToolTipText = e.FullPath + "  (" + Format.Bytes(e.Size) + ")";
+                _lstDeleted.Items.Add(item);
+            }
+        }
+        finally { _lstDeleted.EndUpdate(); }
+        _lstDeleted.ShowItemToolTips = true;
+    }
+
+    /// <summary>De map zoals de gebruiker hem kent ("Bureaublad", "Downloads\Scans"), anders het volledige pad.</summary>
+    private string DeletedFolderText(DeletedFilesList.Entry e)
+    {
+        var f = _config.Folders.FirstOrDefault(x => x.Id == e.FolderId);
+        if (f is not null && PathRules.IsInside(e.Directory, f.ExpectedPath))
+        {
+            string rel = e.Directory.Length > f.ExpectedPath.TrimEnd('\\').Length ? e.Directory.Substring(f.ExpectedPath.TrimEnd('\\').Length) : "";
+            return f.DisplayName + rel;
+        }
+        return e.Directory;
+    }
+
+    private void FitDeletedColumns()
+    {
+        if (_lstDeleted.Columns.Count < 4) return;
+        int rest = _lstDeleted.ClientSize.Width - _lstDeleted.Columns[0].Width - _lstDeleted.Columns[3].Width - UiFont.Px(4);
+        if (rest < UiFont.Px(160)) return;
+        _lstDeleted.Columns[1].Width = rest * 55 / 100;
+        _lstDeleted.Columns[2].Width = rest - _lstDeleted.Columns[1].Width;
+    }
+
+    private void OnClearDeletedList()
+    {
+        if (!Confirm(Texts.ClearDeletedListConfirm)) return;
+        try { DeletedFilesList.Clear(_layout.DeletedListPath); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Warn("De lijst kon niet worden gewist: " + ex.Message); return; }
+        _deletedStamp = "";
+        RefreshStatus();
+        Flash("✓ De lijst met verwijderde bestanden is gewist.");
+    }
+
+    /// <summary>Na opslaan: een kortere termijn (of 'Niet bijhouden') direct toepassen.</summary>
+    private void PruneDeletedList()
+    {
+        try { DeletedFilesList.Prune(_layout.DeletedListPath, _config.DeletedFilesListDays, DateTime.UtcNow); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        _deletedStamp = "";
+    }
+
+    private void OnDeletedDoubleClick()
+    {
+        if (_lstDeleted.SelectedItems.Count == 0 || _lstDeleted.SelectedItems[0].Tag is not DeletedFilesList.Entry e) return;
+        if (e.Kind == DeletedFilesList.KindRecycleBin)
+            Process.Start(new ProcessStartInfo("explorer.exe", "shell:RecycleBinFolder") { UseShellExecute = false })?.Dispose();
+        else if (Directory.Exists(e.Directory))
+            Process.Start(new ProcessStartInfo("explorer.exe", "\"" + e.Directory + "\"") { UseShellExecute = false })?.Dispose();
+    }
+
     private void OnOpenDirectory()
     {
         if (!Directory.Exists(_layout.BaseDirectory)) { Info("PraktijkClean is nog niet geïnstalleerd; er is nog geen programmamap."); return; }
@@ -942,6 +1079,7 @@ internal sealed class MainForm : Form
         _btnPrimary.Visible = info.Kind != StatusKind.Off;
 
         // ---- Tabblad Logboek
+        LoadDeletedList(installed);
         _lblWeek.Text = StatusInfo.Summary(week, "Totaal") + ".";
         if (state.TaskError is not null) problems.Add(state.TaskError);
         if (!installed)

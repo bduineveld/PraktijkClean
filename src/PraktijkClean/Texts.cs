@@ -89,9 +89,14 @@ internal static class Texts
         "Ziet u het icoon niet? Windows verbergt nieuwe icoontjes achter het pijltje (^) rechtsonder. Sleep het " +
         "icoon van daar naar de taakbalk om het altijd te zien.";
 
+    public const string ClearDeletedListConfirm =
+        "De lijst met verwijderde bestanden wissen?\n\n" +
+        "Alleen de namen in deze lijst verdwijnen. Bestanden worden hierdoor niet teruggezet en ook niet verwijderd; " +
+        "wat in de Prullenbak staat, blijft daar staan.";
+
     public const string UninstallConfirm =
         "PraktijkClean verwijderen?\n\n" +
-        "Dit haalt voor deze gebruiker weg: de geplande taak, het opschoonscript, de instellingen, het logboek, het icoon in " +
+        "Dit haalt voor deze gebruiker weg: de geplande taak, het opschoonscript, de instellingen, het logboek (met de lijst verwijderde bestanden), het icoon in " +
         "het systeemvak, de snelkoppeling in het Startmenu en de vermelding bij Instellingen > Apps.\n\n" +
         "Uw eigen bestanden (Bureaublad, Downloads en andere mappen) worden NIET aangeraakt. Wat al in de Prullenbak staat, blijft daar staan.";
 

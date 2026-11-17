@@ -24,6 +24,9 @@ public sealed class InstallLayout
     public string LogDirectory => Path.Combine(BaseDirectory, "logs");
     public string LogPath => Path.Combine(LogDirectory, "praktijkclean.log");
 
+    /// <summary>Lijst met namen van verwijderde bestanden (alleen als die is ingesteld; wordt automatisch ingekort).</summary>
+    public string DeletedListPath => Path.Combine(LogDirectory, "verwijderde-bestanden.log");
+
     /// <summary>
     /// De geïnstalleerde app (kopie van het gedownloade bestand). Hiernaar wijzen het Startmenu, de lijst met
     /// geïnstalleerde apps van Windows en het icoon in het systeemvak.
@@ -40,6 +43,7 @@ public sealed class InstallLayout
         ConfigPath, ConfigPath + ".tmp",
         StatusPath, StatusPath + ".tmp",
         LogPath, Path.Combine(LogDirectory, "praktijkclean.1.log"),
+        DeletedListPath, DeletedListPath + ".tmp",
         AppExePath, AppExePath + ".tmp",
     };
 }

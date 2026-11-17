@@ -77,7 +77,7 @@ gedownloade bestand is daarna niet meer nodig. Een nieuwere versie installeert u
 | Tijdelijk pauzeren / Hervatten | Zet de geplande taak tijdelijk uit of weer aan. |
 | Terug naar simulatiemodus | Zet het echte verwijderen uit (alleen zichtbaar als het aan staat). |
 | Icoon rechtsonder in het systeemvak | Aan/uit, zie hieronder. |
-| Logboek openen | Toont het logboek (zonder bestandsnamen) in Kladblok. |
+| Logboek openen | Toont het logboek (zonder bestandsnamen) in Kladblok. Welke bestanden zijn verwijderd, ziet u op het tabblad *Logboek*. |
 | Problemen oplossen → Geplande taak en script opnieuw instellen | Zet script en taak opnieuw neer met de huidige instellingen. Dit is **geen** terugzetten naar de standaardinstellingen. |
 | Problemen oplossen → Programmamap openen | Opent `%LOCALAPPDATA%\PraktijkClean`. |
 | PraktijkClean verwijderen… | Verwijdert taak, script, instellingen, logboek, icoon, Startmenu-snelkoppeling en de vermelding bij Apps. Nooit uw eigen bestanden. |
@@ -97,6 +97,20 @@ te zien. Het icoon start bij elke aanmelding en staat standaard uit.
 
 Het **logboek** staat in `%LOCALAPPDATA%\PraktijkClean\logs\praktijkclean.log`: één regel per controle met
 de aantallen, nooit bestandsnamen. Boven 512 kB wordt het oude deel bewaard als `praktijkclean.1.log`.
+
+### Welke bestanden zijn verwijderd?
+
+Bovenaan het tabblad **Logboek** staat de lijst **Verwijderde bestanden**: wanneer, welk bestand, uit welke map en
+wat er gebeurde (naar de Prullenbak, definitief verwijderd of Prullenbak geleegd). Met **Zoeken** filtert u op
+(een deel van) de naam. Dubbelklik op een bestand dat naar de Prullenbak is gegaan om de Prullenbak te openen en
+het terug te zetten.
+
+Omdat bestandsnamen patiëntgegevens kunnen bevatten, blijven ze maar een beperkte tijd staan. Onder de lijst kiest
+u bij **Namen bewaren** *1 week* (standaard), *2 weken*, *1 maand*, *3 maanden* of *Niet bijhouden*; dit geldt na
+*Opslaan*. Oudere regels worden bij elke controle automatisch gewist, en na *Opslaan* direct. Met **Lijst wissen…**
+maakt u de lijst meteen leeg (de bestanden zelf veranderen daardoor niet). De lijst staat in
+`%LOCALAPPDATA%\PraktijkClean\logs\verwijderde-bestanden.log` en wordt bij het verwijderen van PraktijkClean ook
+verwijderd.
 
 ### Uitzonderingen
 

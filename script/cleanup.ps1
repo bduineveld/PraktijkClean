@@ -15,7 +15,10 @@
         na expliciete toestemming per map).
       - Bestanden die in gebruik zijn, verborgen, systeem- of alleen-lezen zijn worden overgeslagen.
       - Maximaal aantal bestanden per uitvoering; bij overschrijding wordt er niets verwijderd.
-      - Logboeken bevatten nooit bestandsnamen of paden.
+      - Het logboek (praktijkclean.log) en status.json bevatten nooit bestandsnamen of paden.
+      - Lijst verwijderde bestanden (logs\verwijderde-bestanden.log, optioneel): wel namen, zodat de
+        gebruiker kan terugzien wat er weg is. Regels ouder dan deletedFilesListDays worden bij elke
+        uitvoering gewist; 0 of ontbrekend = geen lijst bijhouden (een bestaande lijst wordt gewist).
       - Prullenbak legen (optioneel, standaard uit): alleen de eigen Prullenbak van deze gebruiker,
         alleen items die langer dan de ingestelde termijn in de Prullenbak staan, en alleen wanneer
         er ook bestanden verwijderd mogen worden (dus niet in simulatiemodus of bij pauze).
@@ -377,6 +380,13 @@ function Test-PcConfig {
     $deleteMode = Get-PcProp $Raw 'deleteMode'
     if ($deleteMode -isnot [string] -or @('recycleBin', 'permanent') -notcontains $deleteMode) { $errors.Add('deleteMode moet "recycleBin" of "permanent" zijn.') }
 
+    # Lijst verwijderde bestanden: optioneel (ontbreekt = 0 = geen lijst).
+    $listDays = 0
+    if (Test-PcHasProp $Raw 'deletedFilesListDays') {
+        $v = Get-PcProp $Raw 'deletedFilesListDays'
+        if (-not (Test-PcIsInt $v) -or $v -lt 0 -or $v -gt 365) { $errors.Add('deletedFilesListDays moet een geheel getal tussen 0 en 365 zijn.') } else { $listDays = [int]$v }
+    }
+
     # Prullenbak legen: optioneel (ontbreekt = uit, zodat oudere config.json-bestanden geldig blijven).
     # Staat het aan, dan MOET de termijn aanwezig en geldig zijn (nooit een standaardtermijn aannemen).
     $emptyBin = $false
@@ -477,6 +487,7 @@ function Test-PcConfig {
         DeleteMode                = $deleteMode
         EmptyRecycleBin           = $emptyBin
         RecycleBinRetentionDays   = $binDays
+        DeletedFilesListDays      = $listDays
         Folders                   = $folders.ToArray()
     }
     return [pscustomobject]@{ Errors = @(); Config = $cfg }
@@ -869,6 +880,9 @@ function Invoke-PcCleanup {
         ErrorCount      = 0
         Folders         = New-Object System.Collections.Generic.List[object]
         RecycleBin      = $null
+        # Voor de lijst verwijderde bestanden (komt nooit in status.json of het logboek).
+        DeletedListDays = $null
+        DeletedList     = New-Object System.Collections.Generic.List[object]
     }
 
     $read = Read-PcConfig $ConfigPath
@@ -881,6 +895,7 @@ function Invoke-PcCleanup {
         return $result
     }
     $cfg = $read.Config
+    $result.DeletedListDays = $cfg.DeletedFilesListDays
 
     $doDelete = $false
     if ($Mode -eq 'CleanNow') {
@@ -1006,6 +1021,9 @@ function Invoke-PcCleanup {
                 if ($why -eq '') {
                     $w.Report.DeletedCount++
                     $w.Report.DeletedBytes += $c.Size
+                    $kind = 'definitief'
+                    if ($cfg.DeleteMode -eq 'recycleBin') { $kind = 'prullenbak' }
+                    $result.DeletedList.Add([pscustomobject]@{ Kind = $kind; Size = $c.Size; FolderId = $w.Folder.Id; Path = $c.FullPath })
                 } else {
                     $w.Report.SkippedCount++
                     $result.SkippedCount++
@@ -1023,6 +1041,7 @@ function Invoke-PcCleanup {
                 if ($why -eq '') {
                     $bin.DeletedCount++
                     $bin.DeletedBytes += $i.Size
+                    $result.DeletedList.Add([pscustomobject]@{ Kind = 'prullenbak-geleegd'; Size = $i.Size; FolderId = ''; Path = $i.OriginalPath })
                 } elseif ($why -ne 'Bestaat niet meer') {
                     $bin.ErrorCount++
                     $result.ErrorCount++
@@ -1049,6 +1068,57 @@ function Write-PcLog {
         }
         $stamp = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
         [System.IO.File]::AppendAllText($log, "$stamp $Line`r`n", (New-Object System.Text.UTF8Encoding($false)))
+    } catch { }
+}
+
+function Update-PcDeletedList {
+    <#
+      Werkt de lijst verwijderde bestanden bij: regels ouder dan $Days dagen eruit, nieuwe regels erbij.
+      $Days = 0: de lijst wordt niet bijgehouden en een bestaande lijst wordt gewist.
+      Opbouw per regel (tab-gescheiden, UTF-8): tijdstip (UTC), soort, grootte, map-id, volledig pad.
+      Windows staat geen tabs of regeleinden in bestandsnamen toe; voor de zekerheid worden stuurtekens vervangen.
+    #>
+    param([string]$LogDir, [int]$Days, $Entries, [datetime]$NowUtc)
+    $path = Join-Path $LogDir 'verwijderde-bestanden.log'
+    $tmp = $path + '.tmp'
+    try {
+        if ($Days -le 0) {
+            foreach ($p in @($path, $tmp)) { if ([System.IO.File]::Exists($p)) { [System.IO.File]::Delete($p) } }
+            return
+        }
+        $hasNew = ($null -ne $Entries) -and ($Entries.Count -gt 0)
+        if (-not $hasNew -and -not [System.IO.File]::Exists($path)) { return }
+        $cutoff = $NowUtc.AddDays(-$Days)
+        $keep = New-Object System.Collections.Generic.List[string]
+        $changed = $false
+        if ([System.IO.File]::Exists($path)) {
+            foreach ($line in [System.IO.File]::ReadAllLines($path, [System.Text.Encoding]::UTF8)) {
+                $ts = $line.Split("`t")[0]
+                $t = [DateTime]::MinValue
+                $ok = [DateTime]::TryParseExact($ts, 'yyyy-MM-ddTHH:mm:ssZ', [System.Globalization.CultureInfo]::InvariantCulture,
+                    [System.Globalization.DateTimeStyles]::AdjustToUniversal -bor [System.Globalization.DateTimeStyles]::AssumeUniversal, [ref]$t)
+                if ($ok -and $t -ge $cutoff) { $keep.Add($line) } else { $changed = $true }
+            }
+        }
+        if ($hasNew) {
+            $stamp = $NowUtc.ToString('yyyy-MM-ddTHH:mm:ssZ', [System.Globalization.CultureInfo]::InvariantCulture)
+            foreach ($e in $Entries) {
+                $clean = [System.Text.RegularExpressions.Regex]::Replace([string]$e.Path, '[\x00-\x1F]', '?')
+                $keep.Add("$stamp`t$($e.Kind)`t$($e.Size)`t$($e.FolderId)`t$clean")
+            }
+            $changed = $true
+        }
+        if (-not $changed) { return }
+        # Nooit onbeperkt groeien: alleen de nieuwste 50.000 regels bewaren.
+        if ($keep.Count -gt 50000) { $keep.RemoveRange(0, $keep.Count - 50000) }
+        if ($keep.Count -eq 0) {
+            if ([System.IO.File]::Exists($path)) { [System.IO.File]::Delete($path) }
+            return
+        }
+        if (-not [System.IO.Directory]::Exists($LogDir)) { [void][System.IO.Directory]::CreateDirectory($LogDir) }
+        [System.IO.File]::WriteAllLines($tmp, $keep.ToArray(), (New-Object System.Text.UTF8Encoding($false)))
+        if ([System.IO.File]::Exists($path)) { [System.IO.File]::Delete($path) }
+        [System.IO.File]::Move($tmp, $path)
     } catch { }
 }
 
@@ -1166,6 +1236,9 @@ function Invoke-PcMain {
             if ($b.Message -ne '') { $line += " $($b.Message)" }
         }
         Write-PcLog -LogDir (Join-Path $dataDir 'logs') -Line $line
+        if ($null -ne $result.DeletedListDays) {
+            Update-PcDeletedList -LogDir (Join-Path $dataDir 'logs') -Days $result.DeletedListDays -Entries $result.DeletedList -NowUtc $now
+        }
         Write-PcStatus -Path (Join-Path $dataDir 'status.json') -Status $status
 
         if ($Json) {

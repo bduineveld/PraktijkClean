@@ -76,7 +76,7 @@ public sealed class ConfigTests
     {
         // JSON als XML lezen (ingebouwd in .NET Framework): elk veld wordt een element met type="number" enz.
         var root = ParseJson(ConfigStore.Serialize(Valid()));
-        foreach (var name in new[] { "schemaVersion", "simulationMode", "automaticCleanupConfirmed", "paused", "maxFilesPerRun", "minimumAgeMinutes", "deleteMode", "emptyRecycleBin", "recycleBinRetentionDays", "folders", "schedule" })
+        foreach (var name in new[] { "schemaVersion", "simulationMode", "automaticCleanupConfirmed", "paused", "maxFilesPerRun", "minimumAgeMinutes", "deleteMode", "emptyRecycleBin", "recycleBinRetentionDays", "deletedFilesListDays", "folders", "schedule" })
             Assert.True(root.Element(name) is not null, "veld " + name);
         var f = root.Element("folders")!.Elements("item").First();
         foreach (var name in new[] { "id", "enabled", "type", "knownFolder", "expectedPath", "retentionDays", "recurse", "allowNetworkOrSync", "exclusions" })
@@ -108,6 +108,7 @@ public sealed class ConfigTests
         Assert.Equal(0, ConfigValidator.Validate(c).Count, "geldig");
         Assert.Equal(DeleteModes.RecycleBin, c.DeleteMode, "eigen keuze blijft behouden");
         Assert.False(c.EmptyRecycleBin, "Prullenbak legen ontbreekt = uit");
+        Assert.Equal(7, c.DeletedFilesListDays, "lijst verwijderde bestanden: standaard 1 week (na opslaan)");
         Assert.Equal(7, c.RecycleBinRetentionDays, "standaardtermijn");
         Assert.Equal(50, c.MaxFilesPerRun, "maximum");
         Assert.Equal("08:15", c.Schedule.DailyTime, "tijdstip");

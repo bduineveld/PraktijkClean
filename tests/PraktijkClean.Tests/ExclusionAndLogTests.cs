@@ -95,3 +95,76 @@ public sealed class LogSummaryTests
         Assert.Equal(0, s.Runs, "geen controles");
     }
 }
+
+public sealed class DeletedFilesListTests
+{
+    private static readonly DateTime Now = new(2026, 11, 17, 12, 0, 0, DateTimeKind.Utc);
+
+    private static string Line(double daysAgo, string path, string kind = DeletedFilesList.KindRecycleBin) =>
+        DeletedFilesList.FormatLine(new DeletedFilesList.Entry(Now.AddDays(-daysAgo), kind, 1234, "desktop", path));
+
+    [Test]
+    public void RegelHeenEnTerug()
+    {
+        var e = DeletedFilesList.ParseLine(Line(1, @"C:\Users\test\Desktop\Scans\Uitslag Jansen.pdf"))!;
+        Assert.Equal(Now.AddDays(-1), e.DeletedUtc, "tijdstip");
+        Assert.Equal(DateTimeKind.Utc, e.DeletedUtc.Kind, "UTC");
+        Assert.Equal("Uitslag Jansen.pdf", e.FileName, "naam");
+        Assert.Equal(@"C:\Users\test\Desktop\Scans", e.Directory, "map");
+        Assert.Equal(1234L, e.Size, "grootte");
+        Assert.Equal("Naar de Prullenbak", e.KindText, "soort");
+        Assert.True(DeletedFilesList.ParseLine("kapot") is null, "kapotte regel");
+        Assert.True(DeletedFilesList.ParseLine("2026-13-45T00:00:00Z\tx\t1\td\tC:\\a") is null, "ongeldige datum");
+    }
+
+    [Test]
+    public void LadenToontAlleenBinnenTermijnNieuwsteEerst()
+    {
+        using var dir = new TempDir();
+        string path = System.IO.Path.Combine(dir.Path, "verwijderde-bestanden.log");
+        System.IO.File.WriteAllLines(path, new[] { Line(40, @"C:\a\oud.pdf"), Line(5, @"C:\a\midden.pdf"), "rommel", Line(1, @"C:\a\nieuw.pdf") });
+        var week = DeletedFilesList.Load(path, 7, Now);
+        Assert.Equal(2, week.Count, "binnen een week");
+        Assert.Equal("nieuw.pdf", week[0].FileName, "nieuwste eerst");
+        Assert.Equal(3, DeletedFilesList.Load(path, 90, Now).Count, "binnen 3 maanden");
+        Assert.Equal(0, DeletedFilesList.Load(path, 0, Now).Count, "niet bijhouden = leeg");
+        Assert.Equal(0, DeletedFilesList.Load(System.IO.Path.Combine(dir.Path, "bestaat-niet.log"), 7, Now).Count, "geen bestand");
+    }
+
+    [Test]
+    public void InkortenEnWissen()
+    {
+        using var dir = new TempDir();
+        string path = System.IO.Path.Combine(dir.Path, "verwijderde-bestanden.log");
+        System.IO.File.WriteAllLines(path, new[] { Line(40, @"C:\a\oud.pdf"), Line(1, @"C:\a\nieuw.pdf") });
+        DeletedFilesList.Prune(path, 30, Now);
+        var left = System.IO.File.ReadAllLines(path);
+        Assert.Equal(1, left.Length, "oude regel weg");
+        Assert.True(left[0].EndsWith("nieuw.pdf"), "nieuwe regel blijft");
+        DeletedFilesList.Prune(path, 0, Now);
+        Assert.False(System.IO.File.Exists(path), "termijn 0 wist de lijst");
+        System.IO.File.WriteAllLines(path, new[] { Line(40, @"C:\a\oud.pdf") });
+        DeletedFilesList.Prune(path, 7, Now);
+        Assert.False(System.IO.File.Exists(path), "alles verlopen: lijst weg");
+        System.IO.File.WriteAllLines(path, new[] { Line(1, @"C:\a\x.pdf") });
+        DeletedFilesList.Clear(path);
+        Assert.False(System.IO.File.Exists(path), "wissen");
+    }
+
+    [Test]
+    public void KeuzesEnValidatie()
+    {
+        Assert.Equal(0, DeletedFilesList.OptionIndexFor(0), "niet bijhouden");
+        Assert.Equal("1 maand", DeletedFilesList.Options[DeletedFilesList.OptionIndexFor(30)].Label, "1 maand");
+        Assert.Equal("2 weken", DeletedFilesList.Options[DeletedFilesList.OptionIndexFor(10)].Label, "afwijkende waarde: naar boven afgerond");
+        Assert.Equal("de afgelopen maand", DeletedFilesList.PeriodText(30), "periode in een zin");
+        var c = ConfigStore.CreateDefault(@"C:\Users\test\Desktop", @"C:\Users\test\Downloads");
+        c.DeletedFilesListDays = 366;
+        Assert.True(ConfigValidator.Validate(c).Count > 0, "te lang");
+        c.DeletedFilesListDays = -1;
+        Assert.True(ConfigValidator.Validate(c).Count > 0, "negatief");
+        c.DeletedFilesListDays = 30;
+        Assert.Equal(0, ConfigValidator.Validate(c).Count, "geldig");
+        Assert.True(new InstallLayout(@"C:\x").OwnedFiles.Any(f => f.EndsWith("verwijderde-bestanden.log")), "wordt bij verwijderen opgeruimd");
+    }
+}

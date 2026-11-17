@@ -4,7 +4,13 @@
 
 Getest op een tweede Windows 11-computer (ARM64, build 26300, schermschaal 200 %):
 
-- `build.ps1` volledig: 55 scripttests en 44 C#-tests geslaagd; `PraktijkClean-1.3.0.exe` (268 kB) is gebouwd.
+- `build.ps1` volledig: 59 scripttests en 48 C#-tests geslaagd; `PraktijkClean-1.3.0.exe` (285 kB) is gebouwd.
+- Lijst verwijderde bestanden: met een eigen testmap twee keer opgeruimd (naar de Prullenbak en definitief); de
+  namen staan in de lijst op het tabblad Logboek, zoeken filtert, "Niet bijhouden" + Opslaan wist de lijst direct,
+  terugzetten naar "1 week" werkt. "Lijst wissen…" en dubbelklikken zijn alleen in de tests/code gecontroleerd.
+- Verwijderen naar de Prullenbak: in de gewone Windows-sessie (zoals de geplande taak, `InteractiveToken`) komt
+  een bestand in de Prullenbak terecht. Let op: start u het script via een SSH-verbinding, dan verdwijnt het
+  bestand direct (er is daar geen Prullenbak); dat geldt niet voor normaal gebruik.
 - Nieuwe indeling: statuskop (grijs → blauw na opslaan), hoofdknop, menu "Meer", tabbladen Mappen /
   Planning en veiligheid / Logboek, onderbalk met "Niet-opgeslagen wijzigingen" en "Ongedaan maken". Knoppen en
   teksten passen bij 200 %; geen tekst valt meer buiten het venster.
