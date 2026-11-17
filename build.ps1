@@ -38,7 +38,7 @@ if (-not $SkipTests) {
     if ($LASTEXITCODE -ne 0) { throw 'C#-tests mislukt.' }
 }
 
-# Versie uit het projectbestand; de exe krijgt die in de naam, bijv. PraktijkClean-1.2.0.exe.
+# Versie uit het projectbestand; de exe krijgt die in de naam, bijv. PraktijkClean-1.3.0.exe.
 $version = ([xml](Get-Content -Raw -LiteralPath '.\src\PraktijkClean\PraktijkClean.csproj')).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
 if (-not $version) { throw 'Geen <Version> gevonden in src\PraktijkClean\PraktijkClean.csproj.' }
 $exeName = "PraktijkClean-$version.exe"

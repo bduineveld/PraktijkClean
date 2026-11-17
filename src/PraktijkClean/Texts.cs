@@ -41,14 +41,14 @@ internal static class Texts
     public const string RecurseWarning =
         "Met deze optie worden ook bestanden in alle submappen gecontroleerd en eventueel verwijderd. " +
         "De submappen zelf blijven altijd bestaan.\n\n" +
-        "Dit vergroot het risico dat u onbedoeld bestanden kwijtraakt. Gebruik eerst 'Simulatie uitvoeren'.\n\n" +
+        "Dit vergroot het risico dat u onbedoeld bestanden kwijtraakt. Gebruik eerst 'Simulatie bekijken'.\n\n" +
         "Wilt u submappen toch laten doorzoeken?";
 
     public const string AddFolderConfirm =
         "U voegt deze map toe:\n\n{0}\n\n" +
         "Bestanden in deze map die ouder zijn dan de ingestelde bewaartermijn (standaard 30 dagen) komen in " +
         "aanmerking voor verwijdering zodra automatische opschoning actief is. Submappen worden niet doorzocht.\n\n" +
-        "Controleer altijd eerst met 'Simulatie uitvoeren'.{1}\n\nMap toevoegen?";
+        "Controleer altijd eerst met 'Simulatie bekijken'.{1}\n\nMap toevoegen?";
 
     public const string DeleteVersusDestroy =
         "Let op: verwijderen is niet hetzelfde als veilig vernietigen.\n\n" +
@@ -72,7 +72,7 @@ internal static class Texts
         "Iets wat minder dan 15 minuten geleden is weggegooid, blijft altijd staan.\n\n" +
         "Dit geldt ook voor bestanden die u zelf heeft weggegooid, uit welke map dan ook.\n\n" +
         "Het legen gebeurt alleen bij automatische opschoning (dus niet in simulatiemodus of tijdens een pauze) en " +
-        "bij 'Nu opruimen'. 'Simulatie uitvoeren' laat zien welke items in aanmerking komen.";
+        "bij 'Nu opruimen'. 'Simulatie bekijken' laat zien welke items in aanmerking komen.";
 
     public const string EmptyBinConfirm =
         "Met deze optie leegt PraktijkClean ook de Prullenbak van deze gebruiker.\n\n" +
@@ -90,11 +90,23 @@ internal static class Texts
         "icoon van daar naar de taakbalk om het altijd te zien.";
 
     public const string UninstallConfirm =
-        "PraktijkClean volledig verwijderen?\n\n" +
-        "Dit verwijdert de geplande taak, het opschoonscript, de instellingen, het logboek en het icoon in het systeemvak van PraktijkClean " +
-        "voor deze gebruiker.\n\n" +
-        "Uw eigen bestanden (Bureaublad, Downloads en andere mappen) worden NIET aangeraakt.\n\n" +
-        "Het programmabestand dat u heeft gedownload (PraktijkClean-<versie>.exe) blijft staan; dat kunt u daarna zelf verwijderen.";
+        "PraktijkClean verwijderen?\n\n" +
+        "Dit haalt voor deze gebruiker weg: de geplande taak, het opschoonscript, de instellingen, het logboek, het icoon in " +
+        "het systeemvak, de snelkoppeling in het Startmenu en de vermelding bij Instellingen > Apps.\n\n" +
+        "Uw eigen bestanden (Bureaublad, Downloads en andere mappen) worden NIET aangeraakt. Wat al in de Prullenbak staat, blijft daar staan.";
+
+    public const string Installed =
+        "PraktijkClean is ingesteld en staat in simulatiemodus: er wordt nog niets verwijderd.\n\n" +
+        "U vindt PraktijkClean voortaan in het Startmenu. Verwijderen kan via 'Meer > PraktijkClean verwijderen…' of via " +
+        "Instellingen > Apps > Geïnstalleerde apps.\n\n" +
+        "Het gedownloade bestand (PraktijkClean-<versie>.exe) is niet meer nodig; dat mag u verwijderen.\n\n" +
+        "Volgende stap: klik op 'Simulatie bekijken…' om te zien wat er zou worden opgeruimd.";
+
+    public const string About =
+        "PraktijkClean {0}\n\n" +
+        "Ruimt automatisch oude bestanden op van het bureaublad en uit Downloads, zodat er geen patiëntgegevens " +
+        "blijven rondslingeren.\n\n" +
+        "Uitleg, broncode en nieuwe versies:\n{1}";
 
     public const string ElevatedWarning =
         "PraktijkClean draait nu met administratorrechten. Dat is niet nodig.\n\n" +

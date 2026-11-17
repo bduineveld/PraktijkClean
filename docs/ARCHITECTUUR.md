@@ -47,6 +47,8 @@ src/PraktijkClean/               De beheerapp (vensters en teksten)
    MainForm.cs                   Hoofdvenster
    SimulationResultForm.cs       Venster met simulatieresultaat (met 'Uitsluiten' via rechtermuisknop)
    InputDialog.cs                Klein invoervenster (extensie of patroon)
+   AppRegistration.cs            Installatie als app: kopie in LOCALAPPDATA, Startmenu, Geïnstalleerde apps
+   AppUninstall.cs               Volledig verwijderen (menu of /uninstall vanuit Instellingen > Apps)
    StatusInfo.cs                 Bepaalt de status (aan/simulatie/pauze/probleem) voor balk en icoon
    TrayContext.cs                Het icoon in het systeemvak (PraktijkClean-<versie>.exe /tray)
    TrayIntegration.cs            Icoon aan/uit: kopie van de exe, opstartitem, afsluiten
@@ -55,7 +57,7 @@ tests/PraktijkClean.Tests/       Tests voor de C#-logica (zonder externe pakkett
 ```
 
 De app is gebouwd voor **.NET Framework 4.8**, dat in Windows 10 (vanaf 1903) en Windows 11 standaard
-aanwezig is. Daardoor is `PraktijkClean-<versie>.exe` één klein bestand (ongeveer 250 kB) zonder meegeleverde runtime.
+aanwezig is. Daardoor is `PraktijkClean-<versie>.exe` één klein bestand (ongeveer 270 kB) zonder meegeleverde runtime.
 De code van `PraktijkClean.Core` wordt bij het bouwen in de exe zelf opgenomen (geen losse dll), JSON wordt
 gelezen en geschreven met het ingebouwde `DataContractJsonSerializer` (`Compat.cs`), en schermschaal (DPI)
 staat in `app.manifest` (systeembreed; bij verschillende schermen schaalt Windows het venster bij).
@@ -196,21 +198,41 @@ zodat items op **tijd in de Prullenbak** worden geselecteerd; `SHEmptyRecycleBin
 - Logboek en status bevatten alleen aantallen; de oorspronkelijke paden verschijnen alleen in het
   simulatievenster.
 
+## Installatie als Windows-app (per gebruiker)
+
+Bij de eerste keer **Opslaan** (en daarna bij elke start, op de achtergrond) zorgt `AppRegistration` voor:
+
+- een kopie van de app in `%LOCALAPPDATA%\PraktijkClean\PraktijkClean.exe`. Het gedownloade bestand staat vaak in
+  Downloads, dat PraktijkClean zelf opschoont; de installatiemap wordt nooit opgeschoond. Een oudere download
+  overschrijft nooit een nieuwere installatie (versie uit de exe); wordt een oudere download geopend, dan start
+  de geïnstalleerde nieuwere versie.
+- een snelkoppeling in het Startmenu (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\PraktijkClean.lnk`).
+- een vermelding bij **Instellingen > Apps > Geïnstalleerde apps** via
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\PraktijkClean` (naam, versie, icoon, grootte),
+  met als `UninstallString` `"…\PraktijkClean.exe" /uninstall`.
+
+Er zijn geen administratorrechten nodig. Het kopiëren gebeurt op de achtergrond, omdat een virusscanner het
+schrijven van een nieuwe .exe flink kan vertragen.
+
+Verwijderen (`AppUninstall`, vanuit het menu of met `/uninstall`) haalt de taak, de eigen bestanden, de
+opstartregel van het icoon, de snelkoppeling en de Apps-vermelding weg. Een draaiende exe kan zichzelf niet
+verwijderen: een verborgen PowerShell-proces wacht tot PraktijkClean is gesloten en verwijdert dan de
+geïnstalleerde exe en de lege map. Is het hoofdvenster nog open, dan vraagt `/uninstall` eerst om dat te sluiten.
+
 ## Icoon in het systeemvak (optioneel)
 
-Standaard uit; aan te zetten met een vinkje in het statusvak van de app. Dan:
+Standaard uit; aan te zetten via **☰ Meer → Icoon rechtsonder in het systeemvak**. Dan:
 
-- kopieert de app zichzelf naar `%LOCALAPPDATA%\PraktijkClean\PraktijkClean.exe`. Het gedownloade bestand staat
-  vaak in Downloads, dat PraktijkClean zelf opschoont; de installatiemap wordt nooit opgeschoond.
-- zet de app die kopie met `/tray` in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (per gebruiker,
-  geen administratorrechten nodig), zodat het icoon bij elke aanmelding start.
+- zet de app de geïnstalleerde exe met `/tray` in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+  (per gebruiker, geen administratorrechten nodig), zodat het icoon bij elke aanmelding start. Aan- en uitzetten
+  gebeurt op de achtergrond, zodat het venster niet blokkeert.
 - leest het icoon elke 20 seconden `config.json`, `status.json`, het logboek en de geplande taak, en toont
   groen (aan), blauw (simulatie), oranje (gepauzeerd), rood (aan, maar de taak ontbreekt of staat uit) of grijs
   (niet ingesteld), met een eigen teken per status. Het icoon verwijdert zelf nooit iets; het kan alleen de app
   openen, pauzeren/hervatten en zichzelf verbergen.
-- werkt de app bij het openen de kopie bij als die een andere versie is, en sluit hij het icoon af via een
-  benoemd signaal (`Local\PraktijkClean-TrayExit`). Bij "Volledig verwijderen" worden opstartitem en kopie weggehaald.
+- sluit de app het icoon even af als de geïnstalleerde exe wordt bijgewerkt, via een benoemd signaal
+  (`Local\PraktijkClean-TrayExit`), en start het daarna opnieuw.
 
-Een tweede start van de app (bijvoorbeeld via het icoon) haalt het al geopende venster naar voren
+Een tweede start van de app (bijvoorbeeld via het icoon of het Startmenu) haalt het al geopende venster naar voren
 (`Local\PraktijkClean-Show`). Het venster leest bij activeren de opgeslagen instellingen opnieuw in, zodat een
-pauze die via het icoon is gezet niet door 'Instellingen opslaan' ongedaan wordt gemaakt.
+pauze die via het icoon is gezet niet door 'Opslaan' ongedaan wordt gemaakt.

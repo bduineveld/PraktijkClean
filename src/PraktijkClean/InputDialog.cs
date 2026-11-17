@@ -26,8 +26,8 @@ internal sealed class InputDialog : Form
         AutoSizeMode = AutoSizeMode.GrowAndShrink;
 
         var label = new Label { Text = explanation, AutoSize = true, MaximumSize = new Size(440, 0), Margin = new Padding(3, 3, 3, 8) };
-        var ok = new Button { Text = "Toevoegen", AutoSize = true, DialogResult = DialogResult.OK };
-        var cancel = new Button { Text = "Annuleren", AutoSize = true, DialogResult = DialogResult.Cancel };
+        var ok = new Button { Text = "Toevoegen", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MinimumSize = new Size(90, 0), DialogResult = DialogResult.OK };
+        var cancel = new Button { Text = "Annuleren", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MinimumSize = new Size(90, 0), DialogResult = DialogResult.Cancel };
         AcceptButton = ok;
         CancelButton = cancel;
 

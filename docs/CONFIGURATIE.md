@@ -2,7 +2,7 @@
 
 `config.json` staat in `%LOCALAPPDATA%\PraktijkClean\` en wordt normaal via de app beheerd. Handmatig
 aanpassen kan (bijvoorbeeld met Kladblok), maar **elke fout maakt de hele configuratie ongeldig** en dan
-wordt er niets verwijderd. Controleer na een handmatige wijziging altijd met "Simulatie uitvoeren".
+wordt er niets verwijderd. Controleer na een handmatige wijziging altijd met "Simulatie bekijken…".
 
 Een voorbeeld staat in [`script/config.example.json`](../script/config.example.json).
 
@@ -29,7 +29,7 @@ in een bestaande `config.json` een veld, dan geldt de voorzichtige waarde: `dele
 `emptyRecycleBin` `false`, `recycleBinRetentionDays` `7`, `retentionDays` `7`.
 
 `schedule` wordt alleen door de app gebruikt (voor de geplande taak). Wijzigt u `schedule` met de hand,
-klik dan in de app op "Instellingen opslaan" of "Installatie herstellen" om de taak bij te werken.
+klik dan in de app op "Opslaan" of kies "☰ Meer → Problemen oplossen" om de taak bij te werken.
 
 ## Per map (`folders[]`)
 

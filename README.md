@@ -10,7 +10,7 @@ en PDF's daar niet onbedoeld blijven staan.
 - Na installatie staat alles in **simulatiemodus**: er wordt pas iets verwijderd nadat u dat expliciet
   bevestigt.
 
-> **Status: versie 1.2.0, getest op een Windows 11-testcomputer, nog niet in de praktijk.** Lees eerst
+> **Status: versie 1.3.0, getest op twee Windows 11-testcomputers, nog niet in de praktijk.** Lees eerst
 > [docs/BEPERKINGEN.md](docs/BEPERKINGEN.md) en probeer PraktijkClean op een testcomputer voordat u het
 > op werkplekken gebruikt.
 
@@ -35,50 +35,61 @@ en PDF's daar niet onbedoeld blijven staan.
 
 ### Starten
 
-1. Download `PraktijkClean-<versie>.exe` (bijvoorbeeld `PraktijkClean-1.2.0.exe`) van de pagina
-   [Releases](https://github.com/bduineveld/PraktijkClean/releases/latest) (of uit de map [`dist`](dist)) en zet
-   het op de werkplek (bijvoorbeeld in een map `Programma's` in het gebruikersprofiel).
-   Het is één bestand van ongeveer 250 kB; er hoeft niets bij geïnstalleerd te worden (het gebruikt het
+1. Download `PraktijkClean-<versie>.exe` (bijvoorbeeld `PraktijkClean-1.3.0.exe`) van de pagina
+   [Releases](https://github.com/bduineveld/PraktijkClean/releases/latest) (of uit de map [`dist`](dist)).
+   Het is één bestand van ongeveer 260 kB; er hoeft niets bij geïnstalleerd te worden (het gebruikt het
    .NET Framework 4.8 dat standaard in Windows 10 en 11 zit).
 2. Start het programma **als de gebruiker van die werkplek** (niet "Als administrator uitvoeren").
 3. Ziet u "Windows heeft uw pc beschermd"? Klik op **Meer info → Toch uitvoeren**. Dat komt doordat het
    programma nog niet digitaal is ondertekend (zie [docs/ONDERTEKENING.md](docs/ONDERTEKENING.md)).
 
+Bij de eerste keer **Opslaan** zet PraktijkClean zichzelf voor deze gebruiker neer in
+`%LOCALAPPDATA%\PraktijkClean` (zonder administratorrechten), met een snelkoppeling in het **Startmenu** en een
+vermelding bij **Instellingen > Apps > Geïnstalleerde apps** (daar kan het ook worden verwijderd). Het
+gedownloade bestand is daarna niet meer nodig. Een nieuwere versie installeert u door die gewoon te openen en op
+**Opslaan** te klikken; de instellingen blijven behouden.
+
 ### In vijf stappen instellen
 
-1. **Controleer de mappen.** Bureaublad en Downloads staan klaar met "ouder dan 1 dag": wat langer dan een dag
-   op het bureaublad of in Downloads staat, gaat naar de Prullenbak, en wat daarna nog een dag in de Prullenbak
-   staat, wordt definitief verwijderd. Klik een map aan om de bewaartermijn, uitzonderingen en waarschuwingen te zien.
-2. **Kies het moment**: dagelijks op een tijdstip en/of bij aanmelden van Windows.
-3. Klik **Instellingen opslaan**. Het script en de geplande taak worden geïnstalleerd, in simulatiemodus.
+1. **Controleer de mappen** (tabblad *Mappen*). Bureaublad en Downloads staan klaar met "ouder dan 1 dag": wat
+   langer dan een dag op het bureaublad of in Downloads staat, gaat naar de Prullenbak, en wat daarna nog een dag
+   in de Prullenbak staat, wordt definitief verwijderd. Klik een map aan voor de bewaartermijn en uitzonderingen.
+2. **Kies het moment** (tabblad *Planning en veiligheid*): dagelijks op een tijdstip en/of bij aanmelden.
+3. Klik rechtsonder op **Opslaan**. Het script en de geplande taak worden geïnstalleerd, in simulatiemodus.
    Er wordt niets verwijderd.
-4. Klik **Simulatie uitvoeren** en bekijk welke bestanden in aanmerking komen en welke worden overgeslagen.
-   Moet een bestand blijven staan? Klik er met de **rechtermuisknop** op (of gebruik de knop **Uitsluiten**) en
-   kies "nooit verwijderen", "alle .pdf-bestanden nooit verwijderen" of "submap overslaan". Dat wordt meteen opgeslagen.
-5. Tevreden? Klik **Automatische opschoning activeren…**. U ziet nogmaals een overzicht en moet bevestigen.
+4. Klik linksonder op **Simulatie bekijken…** en bekijk welke bestanden in aanmerking komen en welke worden
+   overgeslagen. Moet een bestand blijven staan? Klik er met de **rechtermuisknop** op (of gebruik de knop
+   **Uitsluiten**) en kies "nooit verwijderen", "alle .pdf-bestanden nooit verwijderen" of "submap overslaan".
+   Dat wordt meteen opgeslagen.
+5. Tevreden? Klik rechtsboven op **Automatisch opruimen aanzetten…**. U ziet nogmaals een overzicht en moet bevestigen.
 
-### De knoppen
+### Het venster
 
-| Knop | Wat het doet |
+- **Bovenaan** staat de status in een gekleurde kop, met rechts één knop voor wat op dat moment het meest voor de
+  hand ligt (*Automatisch opruimen aanzetten…*, *Pauzeren*, *Hervatten* of *Herstellen*) en het menu **☰ Meer**.
+- **In het midden** drie tabbladen: *Mappen*, *Planning en veiligheid* en *Logboek*.
+- **Onderaan** alleen **Simulatie bekijken…** en **Opslaan**. Wijzigingen in de tabbladen gelden pas na *Opslaan*;
+  onderaan staat dan "Niet-opgeslagen wijzigingen", met **Ongedaan maken** om terug te gaan naar wat er was opgeslagen.
+
+| Onder ☰ Meer | Wat het doet |
 |---|---|
-| Instellingen opslaan | Slaat op en installeert/werkt script en geplande taak bij. Verwijdert niets. |
-| Simulatie uitvoeren | Toont wat er zou gebeuren, met bestandsnamen (alleen op het scherm). |
-| Automatische opschoning activeren… / Terug naar simulatiemodus | Zet het echte verwijderen aan of uit. |
-| Tijdelijk pauzeren / Hervatten | Zet de geplande taak tijdelijk uit. |
 | Nu opruimen… | Direct opruimen, na een overzicht en bevestiging. |
-| Installatie herstellen | Schrijft script, instellingen en taak opnieuw weg. |
-| PraktijkClean volledig verwijderen… | Verwijdert taak, script, instellingen en logboek. Nooit uw eigen bestanden. |
-| Logboek openen | Toont het logboek (zonder bestandsnamen). |
+| Tijdelijk pauzeren / Hervatten | Zet de geplande taak tijdelijk uit of weer aan. |
+| Terug naar simulatiemodus | Zet het echte verwijderen uit (alleen zichtbaar als het aan staat). |
+| Icoon rechtsonder in het systeemvak | Aan/uit, zie hieronder. |
+| Logboek openen | Toont het logboek (zonder bestandsnamen) in Kladblok. |
+| Problemen oplossen → Geplande taak en script opnieuw instellen | Zet script en taak opnieuw neer met de huidige instellingen. Dit is **geen** terugzetten naar de standaardinstellingen. |
+| Problemen oplossen → Programmamap openen | Opent `%LOCALAPPDATA%\PraktijkClean`. |
+| PraktijkClean verwijderen… | Verwijdert taak, script, instellingen, logboek, icoon, Startmenu-snelkoppeling en de vermelding bij Apps. Nooit uw eigen bestanden. |
 
 ### Staat het aan?
 
-Bovenin het venster staat een gekleurde balk: **groen = AAN** (er wordt automatisch opgeruimd), **blauw =
-SIMULATIE** (alleen tellen), **oranje = GEPAUZEERD**, **rood** = aan, maar de geplande taak ontbreekt of staat
-uit (gebruik "Installatie herstellen"), **grijs** = nog niet ingesteld. Daaronder staan de laatste controle,
-de volgende geplande controle en een overzicht van de **afgelopen 7 dagen** (aantal controles, opgeruimde
-bestanden en wat uit de Prullenbak is geleegd).
+De kop bovenaan is **groen = aan** (er wordt automatisch opgeruimd), **blauw = simulatie** (alleen tellen),
+**oranje = gepauzeerd**, **rood = actie nodig** (aan, maar de geplande taak ontbreekt of staat uit; klik op
+*Herstellen*), **grijs** = nog niet ingesteld. Eronder staan wat er de **afgelopen 7 dagen** is opgeruimd, de
+laatste en de volgende controle. Het tabblad *Logboek* geeft meer details.
 
-Wilt u de status altijd zien? Zet dan **"Icoon rechtsonder in het systeemvak tonen"** aan. Het icoon heeft
+Wilt u de status altijd zien? Kies dan **☰ Meer → Icoon rechtsonder in het systeemvak**. Het icoon heeft
 dezelfde kleuren (met een teken: ✓ aan, ○ simulatie, ‖ gepauzeerd, ! probleem), toont bij aanwijzen wat er
 vandaag is opgeruimd en opent PraktijkClean met een klik; via de rechtermuisknop kunt u pauzeren of het icoon
 verbergen. Windows zet nieuwe icoontjes eerst achter het pijltje (^); sleep het naar de taakbalk om het altijd
@@ -89,15 +100,15 @@ de aantallen, nooit bestandsnamen. Boven 512 kB wordt het oude deel bewaard als 
 
 ### Uitzonderingen
 
-Per map staat rechts een lijst met **uitzonderingen**: wat daarin staat, wordt nooit verwijderd.
+Per map staat op het tabblad *Mappen* een lijst **Nooit verwijderen (uitzonderingen)**. Met **Toevoegen ▾** kiest u:
 
-- **Bestand kiezen…**: kies een of meer bestanden uit die map.
+- **Bestand(en) uit deze map kiezen…**
 - **Submap kiezen…**: een submap overslaan (alleen van belang als "Ook submappen doorzoeken" aan staat).
-- **Extensie of patroon…**: typ een extensie (`.docx`), een bestandsnaam (`Bewaren.pdf`) of een patroon met
-  `*` (willekeurige tekst) of `?` (één teken), bijvoorbeeld `protocol-*`.
-- **Verwijderen** (of de Delete-toets): haalt de geselecteerde uitzondering weg.
+- **Extensie, naam of patroon typen…**: een extensie (`.docx`), een bestandsnaam (`Bewaren.pdf`) of een patroon
+  met `*` (willekeurige tekst) of `?` (één teken), bijvoorbeeld `protocol-*`.
 
-Sneller: in het simulatievenster met de rechtermuisknop op een bestand klikken (zie hierboven).
+**Verwijderen** (of de Delete-toets) haalt de geselecteerde uitzondering weg. Sneller: in het simulatievenster
+met de rechtermuisknop op een bestand klikken (zie hierboven).
 
 ### Wat wordt nooit verwijderd
 
@@ -223,8 +234,9 @@ Artifacts**. Voor openbare projecten is dit gratis.
 1. Pas `<Version>` aan in `src/PraktijkClean/PraktijkClean.csproj` en, als het script wijzigt,
    `$script:PcVersion` in `script/cleanup.ps1`.
 2. Voer `build.ps1` uit.
-3. Bestaande installaties krijgen het nieuwe script zodra men in de nieuwe app op **Instellingen opslaan**
-   of **Installatie herstellen** klikt (de app meldt een afwijkend script vanzelf).
+3. Bestaande installaties krijgen het nieuwe script zodra men in de nieuwe app op **Opslaan** klikt of
+   **☰ Meer → Problemen oplossen → Geplande taak en script opnieuw instellen** kiest (de app meldt een afwijkend
+   script vanzelf).
 
 ---
 
@@ -290,7 +302,9 @@ het draait niet bij stroomuitval, slaapstand of hard uitzetten.
 
 ### Deïnstalleren
 
-In de app: **PraktijkClean volledig verwijderen…**. Daarna kan `PraktijkClean-<versie>.exe` zelf worden weggegooid.
+In de app: **☰ Meer → PraktijkClean verwijderen…**, of via **Instellingen > Apps > Geïnstalleerde apps >
+PraktijkClean > Verwijderen**. Een eventueel nog aanwezig gedownload `PraktijkClean-<versie>.exe` kan daarna
+zelf worden weggegooid.
 Lukt dat niet meer (bijv. app kwijt): verwijder in Taakplanner de taak `PraktijkClean - <gebruiker>` en
 daarna de map `%LOCALAPPDATA%\PraktijkClean`.
 

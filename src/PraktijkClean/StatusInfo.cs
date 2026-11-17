@@ -10,26 +10,34 @@ internal enum StatusKind { Off, Paused, Simulation, Problem, On }
 /// Bepaalt in één keer of PraktijkClean aan staat, zodat de balk in het venster en het icoon in het
 /// systeemvak altijd hetzelfde zeggen.
 /// </summary>
-internal sealed record StatusInfo(StatusKind Kind, string Banner, string Short)
+internal sealed record StatusInfo(StatusKind Kind, string Title, string Detail, string Short)
 {
     public static StatusInfo Compute(AppConfig? config, InstallState state)
     {
         if (config is null || !state.ConfigInstalled)
-            return new(StatusKind.Off, "○  NIET INGESTELD – controleer de instellingen en klik op 'Instellingen opslaan'.", "niet ingesteld");
+            return new(StatusKind.Off, "Nog niet ingesteld",
+                "Controleer hieronder de mappen en de planning en klik op 'Opslaan'. PraktijkClean begint in simulatiemodus: er wordt dan nog niets verwijderd.",
+                "niet ingesteld");
         if (config.Paused)
-            return new(StatusKind.Paused, "●  GEPAUZEERD – er wordt niets automatisch gecontroleerd of opgeruimd. Klik op 'Hervatten'.", "GEPAUZEERD");
+            return new(StatusKind.Paused, "Gepauzeerd",
+                "Er wordt niets automatisch gecontroleerd of opgeruimd tot u op 'Hervatten' klikt.", "GEPAUZEERD");
         bool active = !config.SimulationMode && config.AutomaticCleanupConfirmed;
         if (!active)
-            return new(StatusKind.Simulation, "●  SIMULATIE – er wordt alleen gecontroleerd, niets verwijderd. Aanzetten: 'Automatische opschoning activeren…'.", "SIMULATIE");
+            return new(StatusKind.Simulation, "Simulatiemodus – er wordt niets verwijderd",
+                "PraktijkClean telt alleen wat het zou opruimen (" + Moment(config.Schedule) + "). Bekijk de simulatie en zet daarna automatisch opruimen aan.",
+                "SIMULATIE");
         bool taskOk = state.Task is { Enabled: true } || !TaskXmlBuilder.HasAnyTrigger(config.Schedule);
         if (!taskOk)
-            return new(StatusKind.Problem, "⚠  AAN, MAAR DE GEPLANDE TAAK ONTBREEKT OF STAAT UIT – klik op 'Installatie herstellen'.", "PROBLEEM – open de app");
-        return new(StatusKind.On,
-            "●  AAN – oude bestanden worden automatisch " +
-            (config.DeleteMode == DeleteModes.Permanent ? "definitief verwijderd" : "naar de Prullenbak verplaatst") +
-            (config.EmptyRecycleBin ? " en de Prullenbak wordt geleegd" : "") + " (" + Moment(config.Schedule) + ").",
-            "AAN");
+            return new(StatusKind.Problem, "Actie nodig",
+                "Automatisch opruimen staat aan, maar de geplande taak ontbreekt of staat uit. Klik op 'Herstellen'.", "PROBLEEM – open de app");
+        string what = config.DeleteMode == DeleteModes.Permanent ? "Oude bestanden worden definitief verwijderd" : "Oude bestanden gaan naar de Prullenbak";
+        if (config.EmptyRecycleBin)
+            what += config.RecycleBinRetentionDays == 0 ? ", die daarna wordt geleegd"
+                : $", die na {config.RecycleBinRetentionDays} {(config.RecycleBinRetentionDays == 1 ? "dag" : "dagen")} wordt geleegd";
+        return new(StatusKind.On, "Aan – automatisch opruimen", what + " · " + Capitalize(Moment(config.Schedule)) + ".", "AAN");
     }
+
+    private static string Capitalize(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
 
     public static string Moment(ScheduleSettings schedule)
     {
@@ -39,7 +47,7 @@ internal sealed record StatusInfo(StatusKind Kind, string Banner, string Short)
         return parts.Count == 0 ? "alleen handmatig" : string.Join(" en ", parts);
     }
 
-    /// <summary>Achtergrond- en tekstkleur voor de balk in het venster.</summary>
+    /// <summary>Achtergrondkleur van de kop en kleur van de titel in het venster.</summary>
     public (Color Back, Color Fore) BannerColors => Kind switch
     {
         StatusKind.On => (Color.FromArgb(219, 242, 219), Color.FromArgb(0, 100, 0)),

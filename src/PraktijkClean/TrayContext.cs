@@ -119,7 +119,7 @@ internal sealed class TrayContext : ApplicationContext
         if (MessageBox.Show("Het icoon verbergen? PraktijkClean blijft gewoon werken.\n\nU kunt het icoon later weer aanzetten in de app " +
                             "('Icoon rechtsonder in het systeemvak tonen').", Texts.AppTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             return;
-        try { TrayIntegration.Disable(_layout); }
+        try { TrayIntegration.RemoveAutostart(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
         ExitThread();
     }

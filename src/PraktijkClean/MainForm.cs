@@ -15,9 +15,15 @@ using PraktijkClean.Core.Windows;
 namespace PraktijkClean;
 
 /// <summary>
-/// Het hoofdvenster. De opbouw van het scherm staat in <see cref="BuildLayout"/>, het gedrag van de
-/// knoppen in de methoden die met "On" beginnen. Alle echte logica (opslaan, taak, script) zit in
-/// PraktijkClean.Core; dit venster roept die alleen aan.
+/// Het hoofdvenster:
+/// <list type="bullet">
+/// <item>bovenaan een gekleurde kop met de status, één hoofdknop (aanzetten / pauzeren / hervatten / herstellen)
+/// en het menu "Meer" met de minder vaak gebruikte functies;</item>
+/// <item>in het midden tabbladen: Mappen, Planning en veiligheid, Logboek;</item>
+/// <item>onderaan alleen "Simulatie bekijken…" en "Opslaan".</item>
+/// </list>
+/// De opbouw van het scherm staat in <see cref="BuildLayout"/>, het gedrag in de methoden die met "On" beginnen.
+/// Alle echte logica (opslaan, taak, script) zit in PraktijkClean.Core.
 /// </summary>
 internal sealed class MainForm : Form
 {
@@ -30,70 +36,82 @@ internal sealed class MainForm : Form
     private bool _dirty;
     private bool _loadingUi;   // true terwijl velden worden gevuld: dan telt een wijziging niet als bewerking
     private bool _busy;
+    private bool _closeAfterBusy;
     private readonly EventWaitHandle _showEvent;
     private readonly RegisteredWaitHandle _showWait;
+    private readonly List<Label> _wrapLabels = new();
+    private readonly System.Windows.Forms.Timer _footerTimer = new() { Interval = 8000 };
+    private string _footerFlash = "";
 
-    // ---------------------------------------------------------------- Status
-    // Gekleurde balk bovenaan: in één oogopslag aan/uit/simulatie/gepauzeerd.
-    private readonly Label _lblMode = new()
-    {
-        AutoSize = true, Dock = DockStyle.Fill, Padding = new Padding(10, 8, 10, 8), Margin = new Padding(0, 0, 0, 6), TextAlign = ContentAlignment.MiddleLeft,
-    };
-    private readonly Label _lblTask = new() { AutoSize = true };
-    private readonly Label _lblLastRun = new() { AutoSize = true };
-    private readonly Label _lblLastResult = new() { AutoSize = true };
-    private readonly Label _lblNextRun = new() { AutoSize = true };
-    private readonly Label _lblWeek = new() { AutoSize = true };
-    private readonly Label _lblProblems = new() { AutoSize = true, ForeColor = Color.Firebrick };
-    private readonly Label _lblBusy = new() { AutoSize = true, ForeColor = Color.SteelBlue };
-    private readonly CheckBox _chkTray = new() { Text = "Icoon rechtsonder in het systeemvak tonen (status in één oogopslag)", AutoSize = true };
+    // ---------------------------------------------------------------- Kop (status)
+    private readonly TableLayoutPanel _header = new() { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, Padding = new Padding(16, 12, 12, 12) };
+    private readonly Label _lblState = new() { AutoSize = true, Margin = new Padding(0, 0, 0, 2) };
+    private readonly Label _lblStateText = new() { AutoSize = true, Margin = new Padding(1, 0, 0, 4) };
+    private readonly Label _lblFacts = new() { AutoSize = true, Margin = new Padding(1, 0, 0, 0), ForeColor = Color.FromArgb(70, 70, 70) };
+    private readonly Label _lblProblems = new() { AutoSize = true, Margin = new Padding(1, 4, 0, 0), ForeColor = Color.Firebrick };
+    private readonly Button _btnPrimary = new() { AutoSize = true, Padding = new Padding(8, 2, 8, 2), Margin = new Padding(8, 0, 0, 0) };
+    private readonly Button _btnMenu = new() { Text = "☰  Meer", AutoSize = true, Padding = new Padding(4, 2, 4, 2), Margin = new Padding(8, 0, 0, 0) };
+    private readonly ContextMenuStrip _menu = new() { ShowImageMargin = false, ShowCheckMargin = true };
+    private readonly ToolStripMenuItem _miCleanNow = new("Nu opruimen…");
+    private readonly ToolStripMenuItem _miPause = new("Tijdelijk pauzeren");
+    private readonly ToolStripMenuItem _miSimulationMode = new("Terug naar simulatiemodus");
+    private readonly ToolStripMenuItem _miTray = new("Icoon rechtsonder in het systeemvak");
+    private readonly ToolStripMenuItem _miLog = new("Logboek openen");
+    private readonly ToolStripMenuItem _miTrouble = new("Problemen oplossen");
+    private readonly ToolStripMenuItem _miRepair = new("Geplande taak en script opnieuw instellen");
+    private readonly ToolStripMenuItem _miOpenDir = new("Programmamap openen");
+    private readonly ToolStripMenuItem _miUninstall = new("PraktijkClean verwijderen…");
+    private readonly ToolStripMenuItem _miAbout = new("Over PraktijkClean");
 
-    // ---------------------------------------------------------------- Mappen
-    private readonly ListBox _lstFolders = new() { Dock = DockStyle.Fill, IntegralHeight = false, FormattingEnabled = true };
+    // ---------------------------------------------------------------- Tabblad Mappen
+    private readonly TabControl _tabs = new() { Dock = DockStyle.Fill, Padding = new Point(14, 5) };
+    private readonly ListBox _lstFolders = new() { Dock = DockStyle.Fill, IntegralHeight = false, DrawMode = DrawMode.OwnerDrawFixed };
     private readonly Button _btnAddFolder = new() { Text = "Map toevoegen…", AutoSize = true };
-    private readonly Button _btnRemoveFolder = new() { Text = "Map verwijderen", AutoSize = true };
-
-    // ---------------------------------------------------------------- Instellingen per map
-    private readonly CheckBox _chkEnabled = new() { Text = "Deze map opschonen", AutoSize = true };
-    private readonly Label _lblPath = new() { AutoSize = true };
+    private readonly Button _btnRemoveFolder = new() { Text = "Verwijderen", AutoSize = true };
+    private readonly Label _lblFolderName = new() { AutoSize = true, Margin = new Padding(3, 0, 3, 0) };
+    private readonly Label _lblPath = new() { AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(3, 0, 3, 6) };
     private readonly Label _lblFolderWarning = new() { AutoSize = true, ForeColor = Color.DarkOrange };
-    private readonly ComboBox _cmbRetention = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 200 };
+    private readonly CheckBox _chkEnabled = new() { Text = "Deze map opruimen", AutoSize = true };
+    private readonly ComboBox _cmbRetention = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 210 };
     private readonly NumberBox _numDays = new() { Minimum = 0, Maximum = 3650, Width = 70 };
+    private FlowLayoutPanel _daysRow = null!;
     private readonly CheckBox _chkRecurse = new() { Text = "Ook submappen doorzoeken (afgeraden)", AutoSize = true };
-    private readonly CheckBox _chkAllowSync = new() { Text = "Opschonen op deze OneDrive-/netwerklocatie toestaan (afgeraden)", AutoSize = true };
+    private readonly CheckBox _chkAllowSync = new() { Text = "Opruimen op deze OneDrive-/netwerklocatie toestaan (afgeraden)", AutoSize = true };
     private readonly ListView _lstExclusions = new()
     {
-        View = View.Details, FullRowSelect = true, HideSelection = false, HeaderStyle = ColumnHeaderStyle.Nonclickable, Size = new Size(470, 95),
+        View = View.Details, FullRowSelect = true, HideSelection = false, HeaderStyle = ColumnHeaderStyle.Nonclickable, Height = 110,
     };
-    private readonly Button _btnExclFile = new() { Text = "Bestand kiezen…", AutoSize = true };
-    private readonly Button _btnExclSubfolder = new() { Text = "Submap kiezen…", AutoSize = true };
-    private readonly Button _btnExclText = new() { Text = "Extensie of patroon…", AutoSize = true };
+    private readonly Button _btnExclAdd = new() { Text = "Toevoegen ▾", AutoSize = true };
+    private readonly ContextMenuStrip _exclMenu = new() { ShowImageMargin = false };
     private readonly Button _btnExclRemove = new() { Text = "Verwijderen", AutoSize = true };
 
-    // ---------------------------------------------------------------- Planning en veiligheid
+    // ---------------------------------------------------------------- Tabblad Planning en veiligheid
     private readonly CheckBox _chkDaily = new() { Text = "Dagelijks om", AutoSize = true };
     private readonly DateTimePicker _dtpTime = new() { Format = DateTimePickerFormat.Custom, CustomFormat = "HH:mm", ShowUpDown = true, Width = 80 };
     private readonly CheckBox _chkLogon = new() { Text = "Bij aanmelden van Windows", AutoSize = true };
-    private readonly CheckBox _chkLogoff = new() { Text = "Bij afmelden van Windows (niet beschikbaar)", AutoSize = true, Enabled = false };
-    private readonly LinkLabel _lnkLogoff = new() { Text = "Waarom niet?", AutoSize = true };
+    private readonly LinkLabel _lnkLogoff = new() { Text = "Waarom niet bij afmelden?", AutoSize = true };
+    private readonly RadioButton _rbRecycle = new() { Text = "Naar de Prullenbak (aanbevolen)", AutoSize = true };
+    private readonly RadioButton _rbPermanent = new() { Text = "Direct definitief verwijderen", AutoSize = true };
+    private readonly Label _lblDeleteNote = new() { AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(22, 0, 3, 6) };
+    private readonly CheckBox _chkEmptyBin = new() { Text = "Prullenbak legen: items die er langer dan", AutoSize = true };
+    private readonly NumberBox _numBinDays = new() { Minimum = 0, Maximum = 3650, Width = 60 };
+    private readonly LinkLabel _lnkBinInfo = new() { Text = "Uitleg", AutoSize = true, Margin = new Padding(6, 7, 3, 3) };
     private readonly NumberBox _numMaxFiles = new() { Minimum = 1, Maximum = 5000, Width = 80 };
-    private readonly RadioButton _rbRecycle = new() { Text = "Naar de Prullenbak", AutoSize = true };
-    private readonly RadioButton _rbPermanent = new() { Text = "Definitief verwijderen", AutoSize = true };
-    private readonly Label _lblDeleteNote = new() { AutoSize = true, ForeColor = SystemColors.GrayText };
-    private readonly CheckBox _chkEmptyBin = new() { Text = "Prullenbak automatisch legen", AutoSize = true };
-    private readonly NumberBox _numBinDays = new() { Minimum = 0, Maximum = 3650, Width = 70 };
-    private readonly LinkLabel _lnkBinInfo = new() { Text = "Uitleg", AutoSize = true, Margin = new Padding(3, 7, 3, 3) };
     private readonly LinkLabel _lnkDestroy = new() { Text = "Verwijderen is niet hetzelfde als veilig vernietigen – lees meer", AutoSize = true };
 
-    // ---------------------------------------------------------------- Knoppen
-    private readonly Button _btnSave = new() { Text = "Instellingen opslaan", AutoSize = true };
-    private readonly Button _btnSimulate = new() { Text = "Simulatie uitvoeren", AutoSize = true };
-    private readonly Button _btnActivate = new() { Text = "Automatische opschoning activeren…", AutoSize = true };
-    private readonly Button _btnPause = new() { Text = "Tijdelijk pauzeren", AutoSize = true };
-    private readonly Button _btnCleanNow = new() { Text = "Nu opruimen…", AutoSize = true };
-    private readonly Button _btnRepair = new() { Text = "Installatie herstellen", AutoSize = true };
-    private readonly Button _btnUninstall = new() { Text = "PraktijkClean volledig verwijderen…", AutoSize = true };
+    // ---------------------------------------------------------------- Tabblad Logboek
+    private readonly Label _lblLastRun = new() { AutoSize = true };
+    private readonly Label _lblLastResult = new() { AutoSize = true };
+    private readonly Label _lblTask = new() { AutoSize = true };
+    private readonly Label _lblNextRun = new() { AutoSize = true };
+    private readonly Label _lblWeek = new() { AutoSize = true };
     private readonly Button _btnLog = new() { Text = "Logboek openen", AutoSize = true };
+
+    // ---------------------------------------------------------------- Onderbalk
+    private readonly Button _btnSimulate = new() { Text = "Simulatie bekijken…", AutoSize = true, Padding = new Padding(6, 2, 6, 2) };
+    private readonly Label _lblFooter = new() { AutoSize = true, Margin = new Padding(10, 11, 3, 3) };
+    private readonly Button _btnRevert = new() { Text = "Ongedaan maken", AutoSize = true };
+    private readonly Button _btnSave = new() { Text = "Opslaan", AutoSize = true, Padding = new Padding(14, 2, 14, 2) };
 
     public MainForm()
     {
@@ -110,21 +128,20 @@ internal sealed class MainForm : Form
 
         Shown += (_, _) =>
         {
+            FitWrapLabels();
             if (WindowsSystem.IsElevated()) Warn(Texts.ElevatedWarning);
             if (startupNotice is not null) Info(startupNotice);
+            // Al geïnstalleerd: de geïnstalleerde kopie, het Startmenu en de Apps-lijst bijwerken (op de achtergrond).
+            if (File.Exists(_layout.ConfigPath)) StartRegistration(firstInstallInfo: false);
         };
 
-        // Een tweede start (bijv. via het icoon in het systeemvak) haalt dit venster naar voren.
+        // Een tweede start (bijv. via het icoon in het systeemvak of het Startmenu) haalt dit venster naar voren.
         _showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, Program.ShowEventName);
         _showWait = ThreadPool.RegisterWaitForSingleObject(_showEvent, (_, _) =>
         {
             try { BeginInvoke(new Action(BringToFrontNow)); } catch (InvalidOperationException) { }
         }, null, Timeout.Infinite, executeOnlyOnce: false);
         FormClosed += (_, _) => { _showWait.Unregister(null); _showEvent.Dispose(); };
-
-        // Staat het icoon aan, zorg dan dat het dezelfde versie heeft als deze app en draait.
-        try { TrayIntegration.EnsureCurrent(_layout); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
     }
 
     // =====================================================================================
@@ -148,7 +165,7 @@ internal sealed class MainForm : Form
         {
             config = ConfigStore.TryLoad(_layout.ConfigPath, out string? error);
             if (config is null)
-                notice = error + "\n\nDe standaardinstellingen (simulatiemodus) zijn geladen. Controleer ze en klik op 'Instellingen opslaan'.";
+                notice = error + "\n\nDe standaardinstellingen (simulatiemodus) zijn geladen. Controleer ze en klik op 'Opslaan'.";
         }
         if (config is null)
         {
@@ -173,7 +190,7 @@ internal sealed class MainForm : Form
             _dirty = true;
             notice = "De locatie van de volgende map(pen) is gewijzigd:\n\n" + string.Join("\n", moved) +
                      "\n\nTot u de instellingen opnieuw opslaat, slaat PraktijkClean deze map(pen) uit voorzorg over. " +
-                     "Controleer de waarschuwingen (bijvoorbeeld OneDrive) en klik daarna op 'Instellingen opslaan'.";
+                     "Controleer de waarschuwingen (bijvoorbeeld OneDrive) en klik daarna op 'Opslaan'.";
         }
         return config;
     }
@@ -188,158 +205,222 @@ internal sealed class MainForm : Form
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
         Font = UiFont.Normal;
-        Text = Texts.AppTitle;
+        Text = Texts.AppTitle + " " + Program.Version;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(1100, 780);
-        MinimumSize = new Size(960, 700);
-        _lblMode.Font = new Font(Font.FontFamily, 12F, FontStyle.Bold);
-        foreach (var l in new[] { _lblTask, _lblLastRun, _lblLastResult, _lblNextRun, _lblWeek, _lblProblems })
-            l.MaximumSize = new Size(1040, 0);
-        foreach (var l in new[] { _lblPath, _lblFolderWarning })
-            l.MaximumSize = new Size(480, 0);
-        _lblDeleteNote.MaximumSize = new Size(470, 0);
+        ClientSize = new Size(900, 680);
+        MinimumSize = new Size(780, 580);
+        try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (ArgumentException) { }
         foreach (var o in RetentionOptions.All) _cmbRetention.Items.Add(o);
 
-        // Status bovenaan
-        var status = Column(_lblTask, _lblLastRun, _lblLastResult, _lblWeek, _lblNextRun, _lblProblems, _chkTray, _lblBusy);
-        var statusGroup = Group("Status", status);
+        // ---- Kop: status links, hoofdknop en menu rechts
+        _lblState.Font = new Font("Segoe UI Semibold", 13F, FontStyle.Bold);
+        _lblFolderName.Font = new Font("Segoe UI Semibold", 11F, FontStyle.Bold);
+        _btnPrimary.Font = new Font(Font, FontStyle.Bold);
+        _header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        for (int i = 0; i < 4; i++) _header.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _header.Controls.Add(Wrap(_lblState), 0, 0);
+        _header.Controls.Add(Wrap(_lblStateText), 0, 1);
+        _header.Controls.Add(Wrap(_lblFacts), 0, 2);
+        _header.Controls.Add(Wrap(_lblProblems), 0, 3);
+        var headerButtons = Row(_btnPrimary, _btnMenu);
+        headerButtons.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _header.Controls.Add(headerButtons, 1, 0);
+        _header.SetRowSpan(headerButtons, 4);
 
-        // Links: mappen, planning, veiligheid
-        var folderButtons = Row(_btnAddFolder, _btnRemoveFolder);
-        var folderTable = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
-        folderTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        folderTable.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        folderTable.Controls.Add(_lstFolders, 0, 0);
-        folderTable.Controls.Add(folderButtons, 0, 1);
-        var foldersGroup = Group("Mappen", folderTable, autoSize: false);
+        _menu.Items.AddRange(new ToolStripItem[]
+        {
+            _miCleanNow, _miPause, _miSimulationMode, new ToolStripSeparator(),
+            _miTray, _miLog, new ToolStripSeparator(),
+            _miTrouble, _miUninstall, new ToolStripSeparator(),
+            _miAbout,
+        });
+        _miTrouble.DropDownItems.AddRange(new ToolStripItem[] { _miRepair, _miOpenDir });
+        _miCleanNow.ToolTipText = "Ruimt direct op, na een overzicht en uw bevestiging.";
+        _miRepair.ToolTipText = "Zet het opschoonscript en de geplande taak opnieuw neer met uw huidige instellingen. " +
+                                "Uw instellingen blijven behouden; er wordt niets verwijderd.";
+        _miTray.ToolTipText = "Groen = aan, blauw = simulatie, oranje = gepauzeerd, rood = probleem. Start bij elke aanmelding.";
+        _miUninstall.ToolTipText = "Haalt PraktijkClean weg (taak, instellingen, logboek, Startmenu). Uw eigen bestanden blijven staan.";
 
-        var schedule = Grid();
-        AddRow(schedule, _chkDaily, _dtpTime);
-        AddRow(schedule, _chkLogon);
-        AddRow(schedule, _chkLogoff, _lnkLogoff);
-        AddRow(schedule, Hint("Een gemiste controle (pc stond uit) wordt later ingehaald."));
-        var scheduleGroup = Group("Moment van opschonen", schedule);
+        // ---- Tabblad Mappen: lijst links, instellingen van de gekozen map rechts
+        var folderLeft = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = new Padding(0, 0, 10, 0) };
+        folderLeft.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        folderLeft.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        folderLeft.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        folderLeft.Controls.Add(Heading("Mappen", top: 0), 0, 0);
+        folderLeft.Controls.Add(_lstFolders, 0, 1);
+        folderLeft.Controls.Add(Row(_btnAddFolder, _btnRemoveFolder), 0, 2);
 
-        var safety = Grid();
-        AddRow(safety, Caption("Maximaal aantal bestanden per keer:"), _numMaxFiles);
-        AddRow(safety, Caption("Verwijderde bestanden:"), Row(_rbRecycle, _rbPermanent));
-        AddRow(safety, _lblDeleteNote);
-        AddRow(safety, _chkEmptyBin, Row(Caption("ouder dan"), _numBinDays, Caption("dagen"), _lnkBinInfo));
-        AddRow(safety, _lnkDestroy);
-        var safetyGroup = Group("Veiligheid", safety);
-
-        var left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3 };
-        left.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        left.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        left.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        left.Controls.Add(foldersGroup, 0, 0);
-        left.Controls.Add(scheduleGroup, 0, 1);
-        left.Controls.Add(safetyGroup, 0, 2);
-
-        // Rechts: instellingen van de geselecteerde map
         var details = Grid();
+        AddRow(details, _lblFolderName);
+        AddRow(details, Wrap(_lblPath));
+        AddRow(details, Wrap(_lblFolderWarning));
         AddRow(details, _chkEnabled);
-        AddRow(details, Caption("Locatie:"), _lblPath);
-        AddRow(details, _lblFolderWarning);
-        AddRow(details, Caption("Bewaartermijn:"), Row(_cmbRetention, _numDays, Caption("dagen")));
-        AddRow(details, Hint("Leeftijd = tijd sinds de laatste aanmaak- óf wijzigingsdatum (de nieuwste telt). " +
-                             "Een net gedownload bestand is dus altijd 'nieuw'."));
+        _daysRow = Row(_numDays, Caption("dagen"));
+        AddRow(details, Row(Caption("Opruimen als een bestand:"), _cmbRetention, _daysRow));
+        AddRow(details, Hint("Leeftijd = tijd sinds het bestand is aangemaakt of gewijzigd (de nieuwste datum telt). Een net gedownload bestand is dus altijd 'nieuw'."));
         AddRow(details, _chkRecurse);
         AddRow(details, _chkAllowSync);
-        AddRow(details, Caption("Uitzonderingen – wordt nooit verwijderd:"));
+        AddRow(details, Heading("Nooit verwijderen (uitzonderingen)"));
         AddRow(details, _lstExclusions);
         _lstExclusions.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        AddRow(details, Row(_btnExclFile, _btnExclSubfolder));
-        AddRow(details, Row(_btnExclText, _btnExclRemove));
-        AddRow(details, Hint("Snelkoppelingen, verborgen en geopende bestanden worden altijd overgeslagen. Tip: in het " +
-                             "simulatievenster kunt u met de rechtermuisknop een bestand direct uitsluiten."));
-        var detailsGroup = Group("Instellingen voor de geselecteerde map", details, autoSize: false);
-        // Op kleinere schermen of bij een hoge schermschaal past niet alles: dan kan dit deel scrollen.
-        details.AutoScroll = true;
+        AddRow(details, Row(_btnExclAdd, _btnExclRemove));
+        AddRow(details, Hint("Snelkoppelingen, verborgen en geopende bestanden worden altijd overgeslagen. Tip: in 'Simulatie bekijken' " +
+                             "kunt u met de rechtermuisknop een bestand direct uitsluiten."));
+        _exclMenu.Items.Add("Bestand(en) uit deze map kiezen…", null, (_, _) => OnExcludeFiles());
+        _exclMenu.Items.Add("Submap kiezen…", null, (_, _) => OnExcludeSubfolder());
+        _exclMenu.Items.Add("Extensie, naam of patroon typen…", null, (_, _) => OnExcludeText());
 
-        var middle = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
-        middle.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48));
-        middle.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52));
-        middle.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        middle.Controls.Add(left, 0, 0);
-        middle.Controls.Add(detailsGroup, 1, 0);
+        var folderRight = Scroller(details);
+        var folders = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Padding = new Padding(10) };
+        folders.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
+        folders.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 67));
+        folders.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        folders.Controls.Add(folderLeft, 0, 0);
+        folders.Controls.Add(folderRight, 1, 0);
 
-        // Knoppen onderaan
-        var buttons = Row(_btnSave, _btnSimulate, _btnActivate, _btnPause, _btnCleanNow, _btnRepair, _btnUninstall, _btnLog);
-        buttons.WrapContents = true;
-        buttons.Dock = DockStyle.Fill;
+        // ---- Tabblad Planning en veiligheid
+        var plan = Grid();
+        AddRow(plan, Heading("Wanneer controleren en opruimen", top: 0));
+        AddRow(plan, Row(_chkDaily, _dtpTime));
+        _chkDaily.Margin = new Padding(3, 6, 3, 3);
+        AddRow(plan, _chkLogon);
+        AddRow(plan, Row(new Label
+        {
+            Text = "Een gemiste controle (pc stond uit) wordt later ingehaald.", AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(3, 2, 6, 8),
+        }, _lnkLogoff));
+        AddRow(plan, Heading("Wat er met oude bestanden gebeurt"));
+        AddRow(plan, _rbRecycle);
+        AddRow(plan, _rbPermanent);
+        AddRow(plan, Wrap(_lblDeleteNote));
+        AddRow(plan, Row(_chkEmptyBin, _numBinDays, Caption("dag(en) in staan"), _lnkBinInfo));
+        AddRow(plan, Heading("Veiligheid"));
+        AddRow(plan, Row(Caption("Nooit meer dan"), _numMaxFiles, Caption("bestanden per keer")));
+        AddRow(plan, Hint("Komen er meer bestanden in aanmerking, dan wordt er uit voorzorg niets verwijderd (bijvoorbeeld bij een verkeerd gekozen map)."));
+        AddRow(plan, _lnkDestroy);
+        AddRow(plan, Hint("Wijzigingen op dit tabblad en bij Mappen worden pas actief als u op 'Opslaan' klikt.", top: 14));
 
-        var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(8) };
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.Controls.Add(_lblMode, 0, 0);
-        root.Controls.Add(statusGroup, 0, 1);
-        root.Controls.Add(middle, 0, 2);
-        root.Controls.Add(buttons, 0, 3);
+        // ---- Tabblad Logboek
+        var log = Grid();
+        AddRow(log, Heading("Laatste controle", top: 0));
+        AddRow(log, Wrap(_lblLastRun));
+        AddRow(log, Wrap(_lblLastResult));
+        AddRow(log, Heading("Planning"));
+        AddRow(log, Wrap(_lblTask));
+        AddRow(log, Wrap(_lblNextRun));
+        AddRow(log, Heading("Afgelopen 7 dagen"));
+        AddRow(log, Wrap(_lblWeek));
+        AddRow(log, _btnLog);
+        AddRow(log, Hint("Het logboek bevat per controle alleen aantallen en groottes, nooit bestandsnamen."));
+
+        _tabs.TabPages.Add(Page("Mappen", folders));
+        _tabs.TabPages.Add(Page("Planning en veiligheid", Scroller(plan, padding: 16)));
+        _tabs.TabPages.Add(Page("Logboek", Scroller(log, padding: 16)));
+
+        // ---- Onderbalk
+        var footer = new TableLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, ColumnCount = 4, Padding = new Padding(10, 8, 10, 10) };
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        footer.Controls.Add(_btnSimulate, 0, 0);
+        footer.Controls.Add(Wrap(_lblFooter), 1, 0);
+        footer.Controls.Add(_btnRevert, 2, 0);
+        footer.Controls.Add(_btnSave, 3, 0);
+        _btnSave.Font = new Font(Font, FontStyle.Bold);
+        var footerLine = new Label { Dock = DockStyle.Bottom, Height = 1, BackColor = SystemColors.ControlDark };
+
+        var middle = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 0) };
+        middle.Controls.Add(_tabs);
+
+        // Volgorde telt bij Dock: wat het laatst wordt toegevoegd, krijgt als eerste zijn plek.
+        Controls.Add(middle);
+        Controls.Add(footerLine);
+        Controls.Add(footer);
+        Controls.Add(_header);
 
         _lstExclusions.Columns.Add("Soort", 90);
         _lstExclusions.Columns.Add("Wordt overgeslagen", 300);
-        // Kolombreedtes schalen niet mee met de Windows-schaal; de tweede kolom vult de rest.
-        Load += (_, _) => { _lstExclusions.Columns[0].Width = UiFont.Px(90); FitExclusionColumns(); };
-        _lstExclusions.Resize += (_, _) => FitExclusionColumns();
-        Controls.Add(root);
+        Load += (_, _) =>
+        {
+            // Kolombreedtes en regelhoogte schalen niet vanzelf mee met de Windows-schaal.
+            _lstExclusions.Columns[0].Width = UiFont.Px(90);
+            FitExclusionColumns();
+            _lstFolders.ItemHeight = Math.Min(255, (int)(_lstFolders.Font.Height * 2.7));
+            FitWrapLabels();
+        };
+        _lstExclusions.Resize += (_, _) => { if (IsHandleCreated) BeginInvoke(new Action(FitExclusionColumns)); };
+        Resize += (_, _) => FitWrapLabels();
+        _tabs.SelectedIndexChanged += (_, _) => FitWrapLabels();
 
-        var tips = new ToolTip();
-        tips.SetToolTip(_btnSave, "Slaat de instellingen op en installeert of werkt het script en de geplande taak bij. Er wordt niets verwijderd.");
-        tips.SetToolTip(_btnSimulate, "Laat zien welke bestanden in aanmerking komen. Er wordt niets verwijderd.");
-        tips.SetToolTip(_btnCleanNow, "Ruimt direct op, na een overzicht en uw bevestiging.");
-        tips.SetToolTip(_btnRepair, "Schrijft het script en de instellingen opnieuw weg en maakt de geplande taak opnieuw aan.");
+        var tips = new ToolTip { AutoPopDelay = 15000 };
+        tips.SetToolTip(_btnSave, "Slaat de instellingen op en werkt de geplande taak bij. Pas daarna gelden de wijzigingen. Er wordt niets verwijderd.");
+        tips.SetToolTip(_btnRevert, "Zet alle velden terug naar de laatst opgeslagen instellingen.");
+        tips.SetToolTip(_btnSimulate, "Laat zien welke bestanden nu zouden worden opgeruimd. Er wordt niets verwijderd.");
         tips.SetToolTip(_numBinDays, "Alleen items die langer dan dit aantal dagen in de Prullenbak staan. 0 = alles (behalve de laatste 15 minuten).");
         tips.SetToolTip(_chkEmptyBin, "Leegt ook de Prullenbak van deze gebruiker, inclusief zelf weggegooide bestanden.");
-        tips.SetToolTip(_btnExclFile, "Kies een of meer bestanden uit deze map die nooit verwijderd mogen worden.");
-        tips.SetToolTip(_btnExclSubfolder, "Kies een submap die niet wordt doorzocht (alleen van belang als 'Ook submappen doorzoeken' aan staat).");
-        tips.SetToolTip(_btnExclText, "Typ een extensie (.docx), bestandsnaam of patroon met * (bijv. protocol-*).");
-        tips.SetToolTip(_chkTray, "Groen = aan, blauw = simulatie, oranje = gepauzeerd, rood = probleem. Start voortaan bij elke aanmelding.");
-        tips.SetToolTip(_btnLog, "Het logboek bevat per controle de aantallen, nooit bestandsnamen.");
+        tips.SetToolTip(_btnExclAdd, "Een bestand, submap, extensie (.docx) of patroon (protocol-*) dat nooit verwijderd mag worden.");
+        tips.SetToolTip(_btnLog, "Opent het logboek in Kladblok.");
         tips.SetToolTip(_numMaxFiles, "Komen er meer bestanden in aanmerking, dan wordt er uit voorzorg niets verwijderd.");
+
+        // Knoppen passen zich aan hun tekst aan. Standaard mogen ze alleen groeien ("GrowOnly"); dan maakt de
+        // schermschaal ze bij 150-250% dubbel zo groot (eerst gemeten met de grote letter, daarna nog eens geschaald).
+        foreach (var b in AllControls(this).OfType<Button>().Where(b => b.AutoSize))
+        {
+            b.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            b.MinimumSize = new Size(Math.Max(b.MinimumSize.Width, 80), 28);
+            b.Padding = new Padding(Math.Max(b.Padding.Left, 6), b.Padding.Top, Math.Max(b.Padding.Right, 6), b.Padding.Bottom);
+        }
 
         ResumeLayout(false);
         PerformLayout();
     }
 
-    private static GroupBox Group(string title, Control content, bool autoSize = true)
+    private static IEnumerable<Control> AllControls(Control root)
     {
-        var g = new GroupBox { Text = title, Dock = DockStyle.Fill, Padding = new Padding(10, 6, 10, 8) };
-        if (autoSize) { g.AutoSize = true; g.AutoSizeMode = AutoSizeMode.GrowAndShrink; }
-        content.Dock = DockStyle.Fill;
-        g.Controls.Add(content);
-        return g;
+        foreach (Control c in root.Controls)
+        {
+            yield return c;
+            foreach (var child in AllControls(c)) yield return child;
+        }
     }
 
+    private static TabPage Page(string title, Control content)
+    {
+        var page = new TabPage(title) { UseVisualStyleBackColor = true };
+        content.Dock = DockStyle.Fill;
+        page.Controls.Add(content);
+        return page;
+    }
+
+    /// <summary>Een paneel dat kan scrollen als de inhoud niet past (kleine schermen, hoge schermschaal).</summary>
+    private static Panel Scroller(TableLayoutPanel content, int padding = 0)
+    {
+        var p = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(padding) };
+        content.Dock = DockStyle.Top;
+        p.Controls.Add(content);
+        return p;
+    }
+
+    /// <summary>
+    /// Een kolom met regels onder elkaar. Bewust één kolom: bij twee kolommen geeft TableLayoutPanel de breedte
+    /// van regels over de volle breedte aan de eerste kolom, waardoor de tweede kolom onzichtbaar smal wordt.
+    /// </summary>
     private static TableLayoutPanel Grid()
     {
-        var t = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
-        t.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        var t = new TableLayoutPanel { ColumnCount = 1, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         return t;
     }
 
-    /// <summary>Voegt een regel toe: één control over de volle breedte, of label + control.</summary>
-    private static void AddRow(TableLayoutPanel t, Control first, Control? second = null)
+    /// <summary>Voegt een regel toe over de volle breedte.</summary>
+    private static void AddRow(TableLayoutPanel t, Control control)
     {
         int row = t.RowCount;
         t.RowCount = row + 1;
         t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        first.Anchor = AnchorStyles.Left;
-        t.Controls.Add(first, 0, row);
-        if (second is null)
-        {
-            t.SetColumnSpan(first, 2);
-        }
-        else
-        {
-            // Tekstvakken meerekken met de kolom. Met alleen Anchor.Left krimpt TableLayoutPanel ze bij de
-            // eerste (nog smalle) opmaak tot 0 pixels breed en groeien ze daarna niet meer terug.
-            second.Anchor = second is TextBoxBase ? AnchorStyles.Left | AnchorStyles.Right : AnchorStyles.Left;
-            t.Controls.Add(second, 1, row);
-        }
+        control.Anchor = AnchorStyles.Left;
+        t.Controls.Add(control, 0, row);
     }
 
     private static FlowLayoutPanel Row(params Control[] controls)
@@ -349,19 +430,53 @@ internal sealed class MainForm : Form
         return f;
     }
 
-    private static FlowLayoutPanel Column(params Control[] controls)
-    {
-        var f = Row(controls);
-        f.FlowDirection = FlowDirection.TopDown;
-        return f;
-    }
-
     private static Label Caption(string text) => new() { Text = text, AutoSize = true, Margin = new Padding(3, 7, 3, 3) };
 
-    private static Label Hint(string text) => new()
+    private Label Heading(string text, int top = 16) => new()
     {
-        Text = text, AutoSize = true, MaximumSize = new Size(480, 0), ForeColor = SystemColors.GrayText, Margin = new Padding(3, 2, 3, 8),
+        Text = text, AutoSize = true, Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold), Margin = new Padding(0, top, 3, 4),
     };
+
+    private Label Hint(string text, int top = 2, int bottom = 8) => Wrap(new Label
+    {
+        Text = text, AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(3, top, 3, bottom),
+    });
+
+    /// <summary>Label dat afbreekt op de beschikbare breedte (zie <see cref="FitWrapLabels"/>).</summary>
+    private Label Wrap(Label l)
+    {
+        _wrapLabels.Add(l);
+        return l;
+    }
+
+    /// <summary>
+    /// Een automatisch groeiend label breekt in WinForms alleen af met een maximale breedte. Die hangt af van de
+    /// vensterbreedte en de schermschaal, dus wordt hij bij elke formaatwijziging opnieuw berekend.
+    /// </summary>
+    private void FitWrapLabels()
+    {
+        foreach (var l in _wrapLabels)
+        {
+            if (l.Parent is not Control p || p is FlowLayoutPanel) continue;
+            int width;
+            if (p is TableLayoutPanel t)
+            {
+                var pos = t.GetPositionFromControl(l);
+                int[] cols = t.GetColumnWidths();
+                if (pos.Column < 0 || cols.Length == 0) continue;
+                width = 0;
+                for (int i = pos.Column; i < Math.Min(cols.Length, pos.Column + t.GetColumnSpan(l)); i++) width += cols[i];
+                // Een tabel die zelf meegroeit (AutoSize zonder Dock): neem de breedte van wat eromheen zit.
+                if (t.Dock == DockStyle.None && t.Parent is Control tp) width = Math.Max(width, tp.ClientSize.Width - t.Left);
+            }
+            else
+            {
+                width = p.ClientSize.Width - l.Left;
+            }
+            width -= l.Margin.Horizontal + 2;
+            if (width > 80 && l.MaximumSize.Width != width) l.MaximumSize = new Size(width, 0);
+        }
+    }
 
     // =====================================================================================
     // Gebeurtenissen koppelen
@@ -369,7 +484,7 @@ internal sealed class MainForm : Form
 
     private void WireEvents()
     {
-        _lstFolders.Format += (_, e) => e.Value = DescribeFolder((FolderSettings)e.ListItem!);
+        _lstFolders.DrawItem += DrawFolderItem;
         _lstFolders.SelectedIndexChanged += (_, _) => { if (!_loadingUi) ShowSelectedFolder(); };
         _btnAddFolder.Click += (_, _) => OnAddFolder();
         _btnRemoveFolder.Click += (_, _) => OnRemoveFolder();
@@ -381,9 +496,7 @@ internal sealed class MainForm : Form
         _chkAllowSync.CheckedChanged += (_, _) => OnAllowSyncChanged();
         _lstExclusions.SelectedIndexChanged += (_, _) => UpdateExclusionButtons();
         _lstExclusions.KeyDown += (_, e) => { if (e.KeyCode == Keys.Delete) OnRemoveExclusions(); };
-        _btnExclFile.Click += (_, _) => OnExcludeFiles();
-        _btnExclSubfolder.Click += (_, _) => OnExcludeSubfolder();
-        _btnExclText.Click += (_, _) => OnExcludeText();
+        _btnExclAdd.Click += (_, _) => _exclMenu.Show(_btnExclAdd, new Point(0, _btnExclAdd.Height));
         _btnExclRemove.Click += (_, _) => OnRemoveExclusions();
 
         _chkDaily.CheckedChanged += (_, _) => MarkDirty();
@@ -398,18 +511,53 @@ internal sealed class MainForm : Form
         _lnkLogoff.LinkClicked += (_, _) => Info(Texts.LogoffExplanation);
         _lnkDestroy.LinkClicked += (_, _) => Info(Texts.DeleteVersusDestroy);
 
-        _btnSave.Click += async (_, _) => await RunBusy("Instellingen opslaan…", () => { SaveSettings(showConfirmation: true); return Task.CompletedTask; });
+        _btnSave.Click += async (_, _) => await RunBusy("Opslaan…", () => { SaveSettings(showConfirmation: true); return Task.CompletedTask; });
+        _btnRevert.Click += (_, _) => OnRevert();
         _btnSimulate.Click += async (_, _) => await RunBusy("Simulatie wordt uitgevoerd…", OnSimulate);
-        _btnActivate.Click += async (_, _) => await RunBusy("Bezig…", OnActivateOrDeactivate);
-        _btnPause.Click += async (_, _) => await RunBusy("Bezig…", OnPauseToggle);
-        _btnCleanNow.Click += async (_, _) => await RunBusy("Bezig met opruimen…", OnCleanNow);
-        _btnRepair.Click += async (_, _) => await RunBusy("Installatie herstellen…", OnRepair);
-        _btnUninstall.Click += async (_, _) => await RunBusy("Bezig met verwijderen…", OnUninstall);
+        _btnPrimary.Click += async (_, _) => await OnPrimary();
+        _btnMenu.Click += (_, _) => _menu.Show(_btnMenu, new Point(_btnMenu.Width - _menu.PreferredSize.Width, _btnMenu.Height));
         _btnLog.Click += (_, _) => OnOpenLog();
-        _chkTray.CheckedChanged += (_, _) => OnTrayChanged();
 
+        _miCleanNow.Click += async (_, _) => await RunBusy("Bezig met opruimen…", OnCleanNow);
+        _miPause.Click += async (_, _) => await RunBusy("Bezig…", OnPauseToggle);
+        _miSimulationMode.Click += async (_, _) => await RunBusy("Bezig…", OnActivateOrDeactivate);
+        _miTray.Click += async (_, _) => await OnTrayToggle();
+        _miLog.Click += (_, _) => OnOpenLog();
+        _miRepair.Click += async (_, _) => await RunBusy("Taak en script opnieuw instellen…", OnRepair);
+        _miOpenDir.Click += (_, _) => OnOpenDirectory();
+        _miUninstall.Click += async (_, _) => await RunBusy("Bezig met verwijderen…", OnUninstall);
+        _miAbout.Click += (_, _) => Info(string.Format(Texts.About, Program.Version, AppRegistration.WebsiteUrl));
+
+        _footerTimer.Tick += (_, _) => { _footerTimer.Stop(); _footerFlash = ""; UpdateFooter(); };
         FormClosing += OnFormClosing;
         Activated += (_, _) => { if (!_busy) { ReloadFromDisk(); RefreshStatus(); } };
+    }
+
+    /// <summary>Elke map als twee regels: naam (vet) en wat er gebeurt (grijs).</summary>
+    private void DrawFolderItem(object? sender, DrawItemEventArgs e)
+    {
+        e.DrawBackground();
+        if (e.Index < 0 || e.Index >= _lstFolders.Items.Count || _lstFolders.Items[e.Index] is not FolderSettings f) return;
+        bool selected = (e.State & DrawItemState.Selected) != 0;
+        var main = selected ? SystemColors.HighlightText : (f.Enabled ? SystemColors.WindowText : SystemColors.GrayText);
+        var sub = selected ? SystemColors.HighlightText : SystemColors.GrayText;
+        int pad = UiFont.Px(8);
+        using var bold = new Font(_lstFolders.Font, FontStyle.Bold);
+        var r = e.Bounds;
+        int lineH = _lstFolders.Font.Height;
+        int top = r.Top + (r.Height - 2 * lineH - UiFont.Px(2)) / 2;
+        var flags = TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix;
+        TextRenderer.DrawText(e.Graphics, f.DisplayName, bold, new Rectangle(r.Left + pad, top, r.Width - 2 * pad, lineH + 2), main, flags);
+        TextRenderer.DrawText(e.Graphics, FolderSubtitle(f), _lstFolders.Font, new Rectangle(r.Left + pad, top + lineH + UiFont.Px(2), r.Width - 2 * pad, lineH + 2), sub, flags);
+        e.DrawFocusRectangle();
+    }
+
+    private static string FolderSubtitle(FolderSettings f)
+    {
+        if (!f.Enabled) return "Wordt niet opgeruimd";
+        string age = f.RetentionDays == 0 ? "Direct opruimen" : f.RetentionDays == 1 ? "Ouder dan 1 dag" : $"Ouder dan {f.RetentionDays} dagen";
+        int ex = Exclusions.All(f).Count;
+        return age + (f.Recurse ? " · met submappen" : "") + (ex > 0 ? $" · {ex} uitzondering{(ex == 1 ? "" : "en")}" : "");
     }
 
     // =====================================================================================
@@ -462,17 +610,18 @@ internal sealed class MainForm : Form
         _loadingUi = true;
         try
         {
-            foreach (var c in new Control[] { _chkEnabled, _cmbRetention, _numDays, _chkRecurse, _chkAllowSync, _lstExclusions, _btnExclFile, _btnExclSubfolder, _btnExclText })
+            foreach (var c in new Control[] { _chkEnabled, _cmbRetention, _numDays, _chkRecurse, _chkAllowSync, _lstExclusions, _btnExclAdd })
                 c.Enabled = f is not null;
             FillExclusions(f);
             _btnRemoveFolder.Enabled = f is not null && f.Type == FolderTypes.Custom;
-            if (f is null) { _lblPath.Text = "–"; _lblFolderWarning.Text = ""; return; }
+            if (f is null) { _lblFolderName.Text = "Geen map gekozen"; _lblPath.Text = ""; _lblFolderWarning.Text = ""; return; }
 
             _chkEnabled.Checked = f.Enabled;
+            _lblFolderName.Text = f.DisplayName;
             _lblPath.Text = f.ExpectedPath;
             _cmbRetention.SelectedIndex = RetentionOptions.IndexFor(f.RetentionDays);
             _numDays.Value = Math.Min(Math.Max(f.RetentionDays, 0), 3650);
-            _numDays.Visible = RetentionOptions.All[_cmbRetention.SelectedIndex].Days is null;
+            _daysRow.Visible = RetentionOptions.All[_cmbRetention.SelectedIndex].Days is null;
             _chkRecurse.Checked = f.Recurse;
             _chkAllowSync.Checked = f.AllowNetworkOrSync;
 
@@ -494,18 +643,13 @@ internal sealed class MainForm : Form
                 _lblFolderWarning.ForeColor = Color.DarkOrange;
                 _lblFolderWarning.Text = string.Join("\n", check.Warnings);
             }
+            _lblFolderWarning.Visible = _lblFolderWarning.Text.Length > 0;
         }
         finally { _loadingUi = false; }
     }
 
     private PathCheck CheckPath(string path) =>
         PathRules.Check(path, Environment.GetEnvironmentVariable, _layout.BaseDirectory, _syncRoots, WindowsSystem.IsNonFixedDrive);
-
-    private static string DescribeFolder(FolderSettings f)
-    {
-        string days = f.RetentionDays == 0 ? "direct" : f.RetentionDays == 1 ? "na 1 dag" : $"na {f.RetentionDays} dagen";
-        return (f.Enabled ? "" : "(uit) ") + f.DisplayName + " – " + days;
-    }
 
     private void EditFolder(Action<FolderSettings> change)
     {
@@ -522,7 +666,7 @@ internal sealed class MainForm : Form
     private void OnRetentionChoice()
     {
         if (_loadingUi || _cmbRetention.SelectedItem is not RetentionOptions.Option o) return;
-        _numDays.Visible = o.Days is null;
+        _daysRow.Visible = o.Days is null;
         if (o.Days is int d) EditFolder(f => f.RetentionDays = d);
         else EditFolder(f => f.RetentionDays = (int)_numDays.Value);
     }
@@ -582,10 +726,290 @@ internal sealed class MainForm : Form
     {
         if (_loadingUi) return;
         _dirty = true;
+        _footerFlash = "";
         UpdateTitle();
     }
 
-    private void UpdateTitle() => Text = Texts.AppTitle + " " + Program.Version + (_dirty ? " – niet-opgeslagen wijzigingen" : "");
+    /// <summary>Werkt de onderbalk bij: niet-opgeslagen wijzigingen, bezig, of een korte bevestiging.</summary>
+    private void UpdateTitle() => UpdateFooter();
+
+    private void UpdateFooter(string? busy = null)
+    {
+        bool installed = File.Exists(_layout.ConfigPath);
+        _btnSave.Enabled = !_busy && _dirty;
+        _btnRevert.Visible = _dirty && installed;
+        _btnRevert.Enabled = !_busy;
+        if (busy is not null) { _lblFooter.ForeColor = Color.SteelBlue; _lblFooter.Text = busy; }
+        else if (_footerFlash.Length > 0) { _lblFooter.ForeColor = Color.ForestGreen; _lblFooter.Text = _footerFlash; }
+        else if (!installed) { _lblFooter.ForeColor = SystemColors.ControlText; _lblFooter.Text = "Klik op 'Opslaan' om te beginnen. Er wordt dan nog niets verwijderd."; }
+        else if (_dirty) { _lblFooter.ForeColor = Color.DarkOrange; _lblFooter.Text = "● Niet-opgeslagen wijzigingen: die gelden pas na 'Opslaan'."; }
+        else { _lblFooter.Text = ""; }
+    }
+
+    private void Flash(string text)
+    {
+        _footerFlash = text;
+        _footerTimer.Stop();
+        _footerTimer.Start();
+        UpdateFooter();
+    }
+
+    // =====================================================================================
+    // Opslaan en installeren
+    // =====================================================================================
+
+    /// <summary>Slaat op en installeert/werkt bij. Retourneert false als de instellingen ongeldig zijn.</summary>
+    private bool SaveSettings(bool showConfirmation)
+    {
+        ApplyGeneralFieldsToConfig();
+        bool firstInstall = !File.Exists(_layout.ConfigPath);
+        try
+        {
+            _installer.SaveAndApply(_config);
+        }
+        catch (ScheduledTaskException ex)
+        {
+            // Instellingen en script zijn wel opgeslagen; alleen de taak is niet gelukt.
+            _dirty = false;
+            UpdateTitle();
+            StartRegistration(firstInstall);
+            Warn("De instellingen zijn opgeslagen, maar de geplande taak kon niet worden ingesteld.\n\n" + ex.Message +
+                 "\n\nHandmatige simulatie en 'Nu opruimen' werken wel. Probeer 'Meer > Problemen oplossen' of neem contact op met uw systeembeheerder.");
+            return true;
+        }
+        _dirty = false;
+        StartRegistration(firstInstall);
+        if (showConfirmation && !firstInstall)
+            Flash(TaskXmlBuilder.HasAnyTrigger(_config.Schedule)
+                ? "✓ Opgeslagen. De planning is bijgewerkt; er is niets verwijderd."
+                : "✓ Opgeslagen. Er is geen automatisch moment gekozen: PraktijkClean werkt nu alleen als u zelf iets start.");
+        UpdateTitle();
+        return true;
+    }
+
+    /// <summary>
+    /// Zet de geïnstalleerde kopie, de Startmenu-snelkoppeling en de vermelding bij Geïnstalleerde apps neer.
+    /// Op de achtergrond, omdat een virusscanner het kopiëren van een nieuwe .exe flink kan vertragen.
+    /// </summary>
+    private void StartRegistration(bool firstInstallInfo)
+    {
+        Task.Run(() =>
+        {
+            AppRegistration.Install(_layout);
+            TrayIntegration.EnsureRunning(_layout);
+        }).ContinueWith(t =>
+        {
+            if (IsDisposed) return;
+            if (t.Exception is not null)
+            {
+                if (firstInstallInfo)
+                    Warn("PraktijkClean werkt, maar kon niet in het Startmenu en de lijst met apps worden gezet (" +
+                         t.Exception.InnerException?.GetType().Name + "). Probeer het later opnieuw via 'Opslaan'.");
+                return;
+            }
+            if (firstInstallInfo) Info(Texts.Installed);
+        }, TaskScheduler.FromCurrentSynchronizationContext());
+    }
+
+    private void OnRevert()
+    {
+        if (!File.Exists(_layout.ConfigPath)) return;
+        var disk = ConfigStore.TryLoad(_layout.ConfigPath, out string? error);
+        if (disk is null) { Warn(error ?? "De opgeslagen instellingen konden niet worden gelezen."); return; }
+        _config = disk;
+        _dirty = false;
+        FillFromConfig();
+        RefreshStatus();
+    }
+
+    // =====================================================================================
+    // Kop en menu
+    // =====================================================================================
+
+    /// <summary>De hoofdknop in de kop doet wat bij de huidige status het meest voor de hand ligt.</summary>
+    private async Task OnPrimary()
+    {
+        switch (_btnPrimary.Tag)
+        {
+            case StatusKind.Simulation: await RunBusy("Bezig…", OnActivateOrDeactivate); break;
+            case StatusKind.On:
+            case StatusKind.Paused: await RunBusy("Bezig…", OnPauseToggle); break;
+            case StatusKind.Problem: await RunBusy("Herstellen…", OnRepair); break;
+        }
+    }
+
+    private Task OnRepair()
+    {
+        ApplyGeneralFieldsToConfig();
+        _installer.Repair(_config);
+        _dirty = false;
+        StartRegistration(firstInstallInfo: false);
+        UpdateTitle();
+        Info("Het opschoonscript en de geplande taak zijn opnieuw ingesteld met uw huidige instellingen. Er is niets verwijderd.");
+        return Task.CompletedTask;
+    }
+
+    private Task OnUninstall()
+    {
+        if (!Confirm(Texts.UninstallConfirm, MessageBoxIcon.Warning)) return Task.CompletedTask;
+        Info(AppUninstall.Run(_layout));
+        // PraktijkClean is weg: het venster sluiten (zonder te vragen om op te slaan, want dan installeert het opnieuw).
+        _dirty = false;
+        _closeAfterBusy = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task OnTrayToggle()
+    {
+        bool enable = !TrayIntegration.IsEnabled();
+        if (enable && !File.Exists(_layout.ConfigPath))
+        {
+            Info("Sla eerst de instellingen op; daarna kunt u het icoon aanzetten.");
+            return;
+        }
+        await RunBusy(enable ? "Icoon wordt aangezet…" : "Icoon wordt uitgezet…", async () =>
+        {
+            // Kan enkele seconden duren (virusscanner, opstarten van het icoon): niet op de UI-thread.
+            await Task.Run(() => { if (enable) TrayIntegration.Enable(_layout); else TrayIntegration.Disable(); });
+            if (enable) Info(Texts.TrayEnabled);
+        });
+    }
+
+    private void OnOpenLog()
+    {
+        if (!File.Exists(_layout.LogPath)) { Info("Er is nog geen logboek. Het logboek wordt aangemaakt bij de eerste controle."); return; }
+        Process.Start(new ProcessStartInfo("notepad.exe", "\"" + _layout.LogPath + "\"") { UseShellExecute = false })?.Dispose();
+    }
+
+    private void OnOpenDirectory()
+    {
+        if (!Directory.Exists(_layout.BaseDirectory)) { Info("PraktijkClean is nog niet geïnstalleerd; er is nog geen programmamap."); return; }
+        Process.Start(new ProcessStartInfo("explorer.exe", "\"" + _layout.BaseDirectory + "\"") { UseShellExecute = false })?.Dispose();
+    }
+
+    private void OnFormClosing(object? sender, FormClosingEventArgs e)
+    {
+        if (_busy) { e.Cancel = true; return; }
+        if (!_dirty || !File.Exists(_layout.ConfigPath)) return;
+        var answer = MessageBox.Show(this, "Er zijn niet-opgeslagen wijzigingen. Nu opslaan?", Texts.AppTitle,
+            MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+        if (answer == DialogResult.Cancel) { e.Cancel = true; return; }
+        if (answer == DialogResult.Yes)
+        {
+            try { SaveSettings(showConfirmation: false); }
+            catch (InvalidOperationException ex) { Warn(ex.Message); e.Cancel = true; }
+        }
+    }
+
+    // =====================================================================================
+    // Status
+    // =====================================================================================
+
+    private void RefreshStatus()
+    {
+        var state = _installer.GetState();
+        var last = RunReport.TryLoadStatus(_layout.StatusPath);
+        var problems = new List<string>();
+        bool installed = state.ConfigInstalled;
+
+        // ---- Kop
+        var info = StatusInfo.Compute(installed ? _config : null, state);
+        var (back, fore) = info.BannerColors;
+        _header.BackColor = back;
+        _lblState.ForeColor = fore;
+        _lblState.Text = "●  " + info.Title;
+        _lblStateText.Text = info.Detail;
+
+        var week = LogSummary.Load(_layout.LogPath, DateTime.Now.AddDays(-7));
+        var facts = new List<string>();
+        if (installed)
+        {
+            facts.Add(StatusInfo.Summary(week, "Afgelopen 7 dagen"));
+            facts.Add(last?.LastRunUtc is DateTime l ? "Laatste\u00A0controle: " + When(l.ToLocalTime()) : "Nog niet gecontroleerd");
+            if (state.Task is { Enabled: true, NextRunTime: DateTime n }) facts.Add("Volgende: " + When(n));
+        }
+        _lblFacts.Text = string.Join("   ·   ", facts);
+        _lblFacts.Visible = facts.Count > 0;
+
+        (_btnPrimary.Text, _btnPrimary.Tag) = info.Kind switch
+        {
+            StatusKind.Simulation => ("Automatisch opruimen aanzetten…", (object)StatusKind.Simulation),
+            StatusKind.On => ("Pauzeren", StatusKind.On),
+            StatusKind.Paused => ("Hervatten", StatusKind.Paused),
+            StatusKind.Problem => ("Herstellen", StatusKind.Problem),
+            _ => ("", StatusKind.Off),
+        };
+        _btnPrimary.Visible = info.Kind != StatusKind.Off;
+
+        // ---- Tabblad Logboek
+        _lblWeek.Text = StatusInfo.Summary(week, "Totaal") + ".";
+        if (state.TaskError is not null) problems.Add(state.TaskError);
+        if (!installed)
+            _lblTask.Text = "Geplande taak: nog niet aangemaakt (dat gebeurt bij 'Opslaan').";
+        else if (state.Task is null)
+        {
+            _lblTask.Text = TaskXmlBuilder.HasAnyTrigger(_config.Schedule)
+                ? "Geplande taak: ontbreekt."
+                : "Geplande taak: geen (er is geen automatisch moment gekozen; alleen handmatig gebruik).";
+            if (TaskXmlBuilder.HasAnyTrigger(_config.Schedule)) problems.Add("De geplande taak ontbreekt.");
+        }
+        else
+            _lblTask.Text = $"Geplande taak '{_installer.TaskName}': {(state.Task.Enabled ? "aan" : "uit")} – {MomentText()}.";
+
+        if (state.ScriptInstalled && !state.ScriptIsCurrent)
+            problems.Add("Het geïnstalleerde opschoonscript hoort bij een andere versie; klik op 'Opslaan' of gebruik 'Meer > Problemen oplossen'.");
+        if (state.ConfigError is not null) problems.Add(state.ConfigError);
+
+        if (last?.LastRunUtc is DateTime lr)
+        {
+            _lblLastRun.Text = $"{lr.ToLocalTime():dd-MM-yyyy HH:mm} ({TriggerText(last.Trigger)}, {last.Action}).";
+            _lblLastResult.Text = $"{last.Deleted} verwijderd ({Format.Bytes(last.DeletedBytes)}), {last.Candidates} in aanmerking, " +
+                                  $"{last.Skipped} overgeslagen, {last.TooYoung} te recent, {last.Errors} fout(en).";
+            problems.AddRange(last.Messages.Where(m => last.Errors > 0 || last.ExitCode != 0));
+            problems.AddRange(last.Folders.Where(f => f.Status is "Geblokkeerd" or "Fout").Select(f => $"{NameOf(f.Id)}: {f.Message}"));
+            if (last.RecycleBin is { } lb)
+            {
+                _lblLastResult.Text += $"\nPrullenbak: {lb.Deleted} item(s) geleegd ({Format.Bytes(lb.DeletedBytes)}), {lb.Candidates} in aanmerking, {lb.TooYoung} te recent.";
+                if (lb.Message.Length > 0) problems.Add("Prullenbak: " + lb.Message);
+            }
+        }
+        else
+        {
+            _lblLastRun.Text = "Nog niet uitgevoerd.";
+            _lblLastResult.Text = "";
+        }
+        _lblLastResult.Visible = _lblLastResult.Text.Length > 0;
+
+        // Taakplanner geeft ook voor een uitgeschakelde (gepauzeerde) taak een volgende tijd terug; die niet tonen.
+        _lblNextRun.Text = state.Task is { Enabled: false } ? "Volgende uitvoering: geen (gepauzeerd)."
+            : state.Task?.NextRunTime is DateTime next
+            ? $"Volgende uitvoering: {next:dd-MM-yyyy HH:mm}" + (_config.Schedule.AtLogon ? " (en bij elke aanmelding)." : ".")
+            : _config.Schedule.AtLogon && state.Task is not null ? "Volgende uitvoering: bij de volgende aanmelding." : "Volgende uitvoering: –";
+
+        _lblProblems.Text = problems.Count == 0 ? "" : "⚠ " + string.Join("\n⚠ ", problems.Distinct());
+        _lblProblems.Visible = problems.Count > 0;
+
+        // ---- Menu
+        bool active = !_config.SimulationMode && _config.AutomaticCleanupConfirmed;
+        _miPause.Text = _config.Paused ? "Hervatten" : "Tijdelijk pauzeren";
+        _miPause.Enabled = installed;
+        _miSimulationMode.Visible = installed && active;
+        _miCleanNow.Enabled = installed;
+        _miTray.Checked = TrayIntegration.IsEnabled();
+        _miLog.Enabled = File.Exists(_layout.LogPath);
+        _btnLog.Enabled = !_busy && File.Exists(_layout.LogPath);
+        _miUninstall.Enabled = installed || AppRegistration.IsRegistered() || Directory.Exists(_layout.BaseDirectory);
+        UpdateFooter();
+        FitWrapLabels();
+    }
+
+    /// <summary>"vandaag 14:17", "morgen 12:30" of "17-11 12:30".</summary>
+    private static string When(DateTime t)
+    {
+        string day = t.Date == DateTime.Today ? "vandaag" : t.Date == DateTime.Today.AddDays(1) ? "morgen"
+            : t.Date == DateTime.Today.AddDays(-1) ? "gisteren" : t.ToString("dd-MM");
+        return day + "\u00A0" + t.ToString("HH:mm");   // vaste spatie: datum en tijd niet over twee regels
+    }
 
     // =====================================================================================
     // Uitzonderingen
@@ -605,8 +1029,9 @@ internal sealed class MainForm : Form
     private void FitExclusionColumns()
     {
         if (_lstExclusions.Columns.Count < 2) return;
-        int rest = _lstExclusions.ClientSize.Width - _lstExclusions.Columns[0].Width;
-        if (rest > 50) _lstExclusions.Columns[1].Width = rest;
+        // Iets smaller dan de beschikbare ruimte, anders toont de lijst een onnodige horizontale schuifbalk.
+        int rest = _lstExclusions.ClientSize.Width - _lstExclusions.Columns[0].Width - UiFont.Px(4);
+        if (rest > 50 && _lstExclusions.Columns[1].Width != rest) _lstExclusions.Columns[1].Width = rest;
     }
 
     private void UpdateExclusionButtons() =>
@@ -766,36 +1191,8 @@ internal sealed class MainForm : Form
     }
 
     // =====================================================================================
-    // Knoppen
+    // Simulatie, activeren, pauzeren, nu opruimen
     // =====================================================================================
-
-    /// <summary>Slaat op en installeert/werkt bij. Retourneert false als de instellingen ongeldig zijn.</summary>
-    private bool SaveSettings(bool showConfirmation)
-    {
-        ApplyGeneralFieldsToConfig();
-        try
-        {
-            _installer.SaveAndApply(_config);
-        }
-        catch (ScheduledTaskException ex)
-        {
-            // Instellingen en script zijn wel opgeslagen; alleen de taak is niet gelukt.
-            _dirty = false;
-            UpdateTitle();
-            Warn("De instellingen zijn opgeslagen, maar de geplande taak kon niet worden ingesteld.\n\n" + ex.Message +
-                 "\n\nHandmatige simulatie en 'Nu opruimen' werken wel. Probeer 'Installatie herstellen' of neem contact op met uw systeembeheerder.");
-            return true;
-        }
-        _dirty = false;
-        UpdateTitle();
-        if (showConfirmation)
-        {
-            Info(TaskXmlBuilder.HasAnyTrigger(_config.Schedule)
-                ? "De instellingen zijn opgeslagen en de geplande taak is bijgewerkt. Er is niets verwijderd."
-                : "De instellingen zijn opgeslagen. Er is geen automatisch moment gekozen, dus PraktijkClean werkt nu alleen handmatig.");
-        }
-        return true;
-    }
 
     /// <summary>Zorgt dat het script en de actuele instellingen op schijf staan voordat het script draait.</summary>
     private bool EnsureSaved()
@@ -852,13 +1249,13 @@ internal sealed class MainForm : Form
             sb.AppendLine(BinText() + $" Nu komen daarvoor {bin.Candidates} item(s) ({Format.Bytes(bin.CandidateBytes)}) in aanmerking.");
         if (report.Candidates > _config.MaxFilesPerRun)
             sb.AppendLine().AppendLine($"Let op: dat is meer dan het maximum van {_config.MaxFilesPerRun} per keer. Zolang dat zo is, wordt er uit voorzorg niets verwijderd.");
-        sb.AppendLine().Append("Tip: bekijk eerst de details met 'Simulatie uitvoeren'. U kunt later altijd pauzeren of terug naar simulatiemodus.");
+        sb.AppendLine().Append("Tip: bekijk eerst de details met 'Simulatie bekijken'. U kunt later altijd pauzeren of terug naar simulatiemodus.");
         if (!Confirm(sb.ToString(), MessageBoxIcon.Warning)) return;
 
         _installer.ActivateAutomaticCleanup(_config);
         _dirty = false;
         UpdateTitle();
-        Info("Automatische opschoning is actief.");
+        Info("Automatisch opruimen staat aan. U kunt altijd pauzeren (knop rechtsboven) of via 'Meer' terug naar simulatiemodus.");
     }
 
     private Task OnPauseToggle()
@@ -868,8 +1265,7 @@ internal sealed class MainForm : Form
         _installer.SetPaused(_config, pause);
         _dirty = false;
         UpdateTitle();
-        Info(pause ? "Automatische opschoning is gepauzeerd. Klik op 'Hervatten' om weer te starten."
-                   : "Automatische opschoning is hervat.");
+        Flash(pause ? "✓ Gepauzeerd. Klik rechtsboven op 'Hervatten' om weer te starten." : "✓ Hervat.");
         return Task.CompletedTask;
     }
 
@@ -897,7 +1293,7 @@ internal sealed class MainForm : Form
             ? $"Daarnaast worden {pb.Candidates} item(s) ({Format.Bytes(pb.CandidateBytes)}) DEFINITIEF uit de Prullenbak verwijderd.\n\n"
             : "";
         if (!Confirm($"Er worden nu {preview.Candidates} bestand(en) ({Format.Bytes(preview.CandidateBytes)}) {where}\n\n" + binLine +
-                     "Wilt u eerst de lijst zien? Kies dan 'Nee' en gebruik 'Simulatie uitvoeren'.\n\nNu opruimen?", MessageBoxIcon.Warning))
+                     "Wilt u eerst de lijst zien? Kies dan 'Nee' en gebruik 'Simulatie bekijken'.\n\nNu opruimen?", MessageBoxIcon.Warning))
             return;
 
         var result = await _runner.CleanNowAsync();
@@ -913,66 +1309,10 @@ internal sealed class MainForm : Form
         if (result.Errors > 0) Warn(sb.ToString()); else Info(sb.ToString());
     }
 
-    private Task OnRepair()
-    {
-        ApplyGeneralFieldsToConfig();
-        _installer.Repair(_config);
-        _dirty = false;
-        UpdateTitle();
-        Info("De installatie is hersteld: script, instellingen en geplande taak zijn opnieuw ingesteld. Er is niets verwijderd.");
-        return Task.CompletedTask;
-    }
-
-    private Task OnUninstall()
-    {
-        if (!Confirm(Texts.UninstallConfirm, MessageBoxIcon.Warning)) return Task.CompletedTask;
-        try { TrayIntegration.Disable(_layout); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
-        var r = _installer.Uninstall();
-        var sb = new StringBuilder("PraktijkClean is verwijderd voor deze gebruiker. Uw eigen bestanden zijn niet aangeraakt.");
-        if (!r.TaskRemoved) sb.Append("\n\nDe geplande taak kon niet worden verwijderd: ").Append(r.TaskError)
-                              .Append("\nVerwijder de taak '").Append(_installer.TaskName).Append("' eventueel handmatig in Taakplanner.");
-        var foreign = r.RemainingItems.Where(i => !string.Equals(i, Path.GetFileName(_layout.TrayExePath), StringComparison.OrdinalIgnoreCase)).ToList();
-        if (foreign.Count < r.RemainingItems.Count)
-            sb.Append("\n\n").Append(_layout.TrayExePath).Append(" kon niet worden verwijderd, omdat PraktijkClean nu vanaf daar draait. ")
-              .Append("Verwijder dat bestand eventueel zelf nadat u PraktijkClean heeft gesloten.");
-        if (foreign.Count > 0)
-            sb.Append("\n\nIn ").Append(_layout.BaseDirectory).Append(" staan nog bestanden die niet van PraktijkClean zijn; die zijn blijven staan.");
-        Info(sb.ToString());
-
-        // Terug naar de beginsituatie (niet opgeslagen, simulatiemodus).
-        _config = ConfigStore.CreateDefault(KnownFolders.GetPath(KnownFolderNames.Desktop), KnownFolders.GetPath(KnownFolderNames.Downloads));
-        _dirty = true;
-        FillFromConfig();
-        return Task.CompletedTask;
-    }
-
-    private void OnTrayChanged()
-    {
-        if (_loadingUi) return;
-        try
-        {
-            if (_chkTray.Checked)
-            {
-                TrayIntegration.Enable(_layout);
-                Info(Texts.TrayEnabled);
-            }
-            else
-            {
-                TrayIntegration.Disable(_layout);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
-        {
-            Warn("Het icoon kon niet worden " + (_chkTray.Checked ? "aangezet" : "uitgezet") + " (" + ex.GetType().Name + ").");
-        }
-        RefreshStatus();
-    }
-
     /// <summary>
     /// Het icoon in het systeemvak kan intussen hebben gepauzeerd of hervat. Zonder eigen wijzigingen nemen we de
     /// opgeslagen instellingen opnieuw over; met niet-opgeslagen wijzigingen alleen de pauzestand, zodat
-    /// 'Instellingen opslaan' die niet ongedaan maakt.
+    /// 'Opslaan' die niet ongedaan maakt.
     /// </summary>
     private void ReloadFromDisk()
     {
@@ -1000,98 +1340,6 @@ internal sealed class MainForm : Form
         TopMost = false;
     }
 
-    private void OnOpenLog()
-    {
-        if (!File.Exists(_layout.LogPath)) { Info("Er is nog geen logboek. Het logboek wordt aangemaakt bij de eerste controle."); return; }
-        Process.Start(new ProcessStartInfo("notepad.exe", "\"" + _layout.LogPath + "\"") { UseShellExecute = false });
-    }
-
-    private void OnFormClosing(object? sender, FormClosingEventArgs e)
-    {
-        if (_busy) { e.Cancel = true; return; }
-        if (!_dirty) return;
-        var answer = MessageBox.Show(this, "Er zijn niet-opgeslagen wijzigingen. Nu opslaan?", Texts.AppTitle,
-            MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
-        if (answer == DialogResult.Cancel) { e.Cancel = true; return; }
-        if (answer == DialogResult.Yes)
-        {
-            try { SaveSettings(showConfirmation: false); }
-            catch (InvalidOperationException ex) { Warn(ex.Message); e.Cancel = true; }
-        }
-    }
-
-    // =====================================================================================
-    // Status
-    // =====================================================================================
-
-    private void RefreshStatus()
-    {
-        var state = _installer.GetState();
-        var last = RunReport.TryLoadStatus(_layout.StatusPath);
-        var problems = new List<string>();
-
-        var info = StatusInfo.Compute(_config, state);
-        (_lblMode.BackColor, _lblMode.ForeColor) = info.BannerColors;
-        _lblMode.Text = info.Banner;
-
-        var week = LogSummary.Load(_layout.LogPath, DateTime.Now.AddDays(-7));
-        _lblWeek.Text = StatusInfo.Summary(week, "Afgelopen 7 dagen") + ". Details: 'Logboek openen'.";
-
-        if (state.TaskError is not null) problems.Add(state.TaskError);
-        if (!state.ConfigInstalled)
-            _lblTask.Text = "Geplande taak: nog niet aangemaakt.";
-        else if (state.Task is null)
-        {
-            _lblTask.Text = TaskXmlBuilder.HasAnyTrigger(_config.Schedule)
-                ? "Geplande taak: ontbreekt."
-                : "Geplande taak: geen (er is geen automatisch moment gekozen; alleen handmatig gebruik).";
-            if (TaskXmlBuilder.HasAnyTrigger(_config.Schedule)) problems.Add("De geplande taak ontbreekt. Gebruik 'Installatie herstellen'.");
-        }
-        else
-            _lblTask.Text = $"Geplande taak: '{_installer.TaskName}' ({(state.Task.Enabled ? "aan" : "uit")}) – {MomentText()}.";
-
-        if (state.ScriptInstalled && !state.ScriptIsCurrent)
-            problems.Add("Het geïnstalleerde opschoonscript wijkt af van deze versie. Gebruik 'Installatie herstellen'.");
-        if (state.ConfigError is not null) problems.Add(state.ConfigError);
-
-        if (last?.LastRunUtc is DateTime lr)
-        {
-            _lblLastRun.Text = $"Laatste controle: {lr.ToLocalTime():dd-MM-yyyy HH:mm} ({TriggerText(last.Trigger)}, {last.Action}).";
-            _lblLastResult.Text = $"Resultaat: {last.Deleted} verwijderd ({Format.Bytes(last.DeletedBytes)}), {last.Candidates} in aanmerking, " +
-                                  $"{last.Skipped} overgeslagen, {last.TooYoung} te recent, {last.Errors} fout(en).";
-            problems.AddRange(last.Messages.Where(m => last.Errors > 0 || last.ExitCode != 0));
-            problems.AddRange(last.Folders.Where(f => f.Status is "Geblokkeerd" or "Fout").Select(f => $"{NameOf(f.Id)}: {f.Message}"));
-            if (last.RecycleBin is { } lb)
-            {
-                _lblLastResult.Text += $"\nPrullenbak: {lb.Deleted} item(s) geleegd ({Format.Bytes(lb.DeletedBytes)}), {lb.Candidates} in aanmerking, {lb.TooYoung} te recent.";
-                if (lb.Message.Length > 0) problems.Add("Prullenbak: " + lb.Message);
-            }
-        }
-        else
-        {
-            _lblLastRun.Text = "Laatste controle: nog niet uitgevoerd.";
-            _lblLastResult.Text = "";
-        }
-        _lblLastResult.Visible = _lblLastResult.Text.Length > 0;
-
-        // Taakplanner geeft ook voor een uitgeschakelde (gepauzeerde) taak een volgende tijd terug; die niet tonen.
-        _lblNextRun.Text = state.Task is { Enabled: false } ? "Volgende geplande uitvoering: geen (gepauzeerd)."
-            : state.Task?.NextRunTime is DateTime next
-            ? $"Volgende geplande uitvoering: {next:dd-MM-yyyy HH:mm}" + (_config.Schedule.AtLogon ? " (en bij elke aanmelding)." : ".")
-            : _config.Schedule.AtLogon && state.Task is not null ? "Volgende uitvoering: bij de volgende aanmelding." : "Volgende geplande uitvoering: –";
-
-        _lblProblems.Text = problems.Count == 0 ? "" : "Aandacht: " + string.Join("\n", problems.Distinct());
-
-        bool active = !_config.SimulationMode && _config.AutomaticCleanupConfirmed;
-        _btnActivate.Text = active ? "Terug naar simulatiemodus" : "Automatische opschoning activeren…";
-        _btnPause.Text = _config.Paused ? "Hervatten" : "Tijdelijk pauzeren";
-        _btnPause.Enabled = !_busy && state.ConfigInstalled;
-        _btnLog.Enabled = !_busy && File.Exists(_layout.LogPath);
-        _loadingUi = true;
-        try { _chkTray.Checked = TrayIntegration.IsEnabled(); }
-        finally { _loadingUi = false; }
-    }
-
     private string MomentText() => StatusInfo.Moment(_config.Schedule);
 
     private static string TriggerText(string? trigger) => trigger switch
@@ -1114,7 +1362,7 @@ internal sealed class MainForm : Form
         _busy = true;
         SetButtonsEnabled(false);
         UseWaitCursor = true;
-        _lblBusy.Text = message;
+        UpdateFooter(message);
         try
         {
             await action();
@@ -1128,13 +1376,14 @@ internal sealed class MainForm : Form
         catch (InvalidOperationException ex) { Error(ex.Message); }
         catch (IOException ex) { Error("Een bestand kon niet worden gelezen of geschreven (" + ex.GetType().Name + ")."); }
         catch (UnauthorizedAccessException) { Error("Geen toegang tot een bestand of map van PraktijkClean."); }
+        catch (System.Security.SecurityException) { Error("Geen toegang tot een instelling van Windows."); }
         finally
         {
             _busy = false;
             UseWaitCursor = false;
-            _lblBusy.Text = "";
             SetButtonsEnabled(true);
-            RefreshStatus();
+            if (_closeAfterBusy) BeginInvoke(new Action(Close));
+            else RefreshStatus();
         }
     }
 
@@ -1156,9 +1405,10 @@ internal sealed class MainForm : Form
 
     private void SetButtonsEnabled(bool enabled)
     {
-        foreach (var b in new[] { _btnSave, _btnSimulate, _btnActivate, _btnPause, _btnCleanNow, _btnRepair, _btnUninstall, _btnLog, _btnAddFolder })
+        foreach (var b in new[] { _btnSimulate, _btnPrimary, _btnMenu, _btnLog, _btnAddFolder })
             b.Enabled = enabled;
         _btnRemoveFolder.Enabled = enabled && SelectedFolder?.Type == FolderTypes.Custom;
+        UpdateFooter(enabled ? null : _lblFooter.Text);
     }
 
     private static string Shorten(string s, int max) => s.Length <= max ? s.Trim() : s.Substring(0, max).Trim() + "…";

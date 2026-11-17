@@ -24,8 +24,11 @@ public sealed class InstallLayout
     public string LogDirectory => Path.Combine(BaseDirectory, "logs");
     public string LogPath => Path.Combine(LogDirectory, "praktijkclean.log");
 
-    /// <summary>Kopie van de app voor het (optionele) icoon in het systeemvak; start bij aanmelden.</summary>
-    public string TrayExePath => Path.Combine(BaseDirectory, "PraktijkClean.exe");
+    /// <summary>
+    /// De geïnstalleerde app (kopie van het gedownloade bestand). Hiernaar wijzen het Startmenu, de lijst met
+    /// geïnstalleerde apps van Windows en het icoon in het systeemvak.
+    /// </summary>
+    public string AppExePath => Path.Combine(BaseDirectory, "PraktijkClean.exe");
 
     /// <summary>
     /// De enige bestanden die PraktijkClean ooit zelf aanmaakt. Bij deïnstallatie worden
@@ -37,6 +40,6 @@ public sealed class InstallLayout
         ConfigPath, ConfigPath + ".tmp",
         StatusPath, StatusPath + ".tmp",
         LogPath, Path.Combine(LogDirectory, "praktijkclean.1.log"),
-        TrayExePath, TrayExePath + ".tmp",
+        AppExePath, AppExePath + ".tmp",
     };
 }

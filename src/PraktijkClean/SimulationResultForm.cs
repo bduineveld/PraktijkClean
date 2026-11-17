@@ -24,7 +24,7 @@ internal sealed class SimulationResultForm : Form
 
     private readonly ListView _list = new() { Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true, GridLines = true, HideSelection = false };
     private readonly ContextMenuStrip _menu = new();
-    private readonly Button _btnExclude = new() { Text = "Uitsluiten ▾", AutoSize = true, Enabled = false };
+    private readonly Button _btnExclude = new() { Text = "Uitsluiten ▾", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Enabled = false };
     private readonly Label _lblSaved = new() { AutoSize = true, ForeColor = Color.ForestGreen, Margin = new Padding(8, 8, 3, 3) };
     private readonly AppConfig _config;
     private readonly ExcludeHandler _onExclude;
@@ -77,7 +77,7 @@ internal sealed class SimulationResultForm : Form
         _list.SelectedIndexChanged += (_, _) => _btnExclude.Enabled = SelectedCandidates().Count > 0;
         _btnExclude.Click += (_, _) => _menu.Show(_btnExclude, new Point(0, _btnExclude.Height));
 
-        var close = new Button { Text = "Sluiten", AutoSize = true, DialogResult = DialogResult.OK };
+        var close = new Button { Text = "Sluiten", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MinimumSize = new Size(90, 0), DialogResult = DialogResult.OK };
         AcceptButton = close;
         CancelButton = close;
 
