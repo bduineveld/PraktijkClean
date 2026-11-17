@@ -58,8 +58,7 @@ internal static class Program
                     Texts.AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return 1;
             }
-            if (MessageBox.Show(Texts.UninstallConfirm, Texts.AppTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
-                    MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            if (!ConfirmDialog.Ask(null, "PraktijkClean verwijderen?", Texts.UninstallConfirm, "PraktijkClean verwijderen", ConfirmIcon.Warning))
                 return 0;
             MessageBox.Show(AppUninstall.Run(layout), Texts.AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return 0;
@@ -90,8 +89,7 @@ internal static class Program
         var os = Environment.OSVersion.Version;
         bool isWindows11 = os.Major > 10 || (os.Major == 10 && os.Build >= 22000);
         if (!isWindows11 &&
-            MessageBox.Show(Texts.NotWindows11, Texts.AppTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
-                            MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            !ConfirmDialog.Ask(null, "Niet getest op deze Windows-versie", Texts.NotWindows11, "Toch doorgaan", ConfirmIcon.Warning, cancel: "Afsluiten"))
         {
             return 0;
         }

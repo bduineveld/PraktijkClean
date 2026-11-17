@@ -35,20 +35,18 @@ internal static class Texts
         "Opschonen is op zulke locaties daarom standaard geblokkeerd.";
 
     public const string AllowSyncConfirm =
-        "\n\nWeet u zeker dat u opschonen op deze locatie wilt toestaan? Doe dit alleen als u de gevolgen begrijpt " +
-        "en dit heeft afgestemd met uw systeembeheerder.";
+        "\n\nSta dit alleen toe als u de gevolgen begrijpt en dit heeft afgestemd met uw systeembeheerder.";
 
     public const string RecurseWarning =
         "Met deze optie worden ook bestanden in alle submappen gecontroleerd en eventueel verwijderd. " +
         "De submappen zelf blijven altijd bestaan.\n\n" +
-        "Dit vergroot het risico dat u onbedoeld bestanden kwijtraakt. Gebruik eerst 'Simulatie bekijken'.\n\n" +
-        "Wilt u submappen toch laten doorzoeken?";
+        "Dit vergroot het risico dat u onbedoeld bestanden kwijtraakt. Gebruik daarna eerst 'Simulatie bekijken'.";
 
     public const string AddFolderConfirm =
-        "U voegt deze map toe:\n\n{0}\n\n" +
+        "{0}\n\n" +
         "Bestanden in deze map die ouder zijn dan de ingestelde bewaartermijn (standaard 30 dagen) komen in " +
         "aanmerking voor verwijdering zodra automatische opschoning actief is. Submappen worden niet doorzocht.\n\n" +
-        "Controleer altijd eerst met 'Simulatie bekijken'.{1}\n\nMap toevoegen?";
+        "Controleer altijd eerst met 'Simulatie bekijken'.{1}";
 
     public const string DeleteVersusDestroy =
         "Let op: verwijderen is niet hetzelfde als veilig vernietigen.\n\n" +
@@ -80,7 +78,7 @@ internal static class Texts
         "bestanden die u of een collega zelf heeft weggegooid, van welke map of schijf dan ook. Daarna is het niet " +
         "meer via Windows terug te halen.\n\n" +
         "Net als bij de mappen gebeurt dit pas als automatische opschoning actief is; in simulatiemodus wordt " +
-        "alleen geteld.\n\nPrullenbak automatisch legen inschakelen?";
+        "alleen geteld.";
 
     public const string TrayEnabled =
         "Het icoon staat nu rechtsonder in het systeemvak en start voortaan bij elke aanmelding.\n\n" +
@@ -90,12 +88,10 @@ internal static class Texts
         "icoon van daar naar de taakbalk om het altijd te zien.";
 
     public const string ClearDeletedListConfirm =
-        "De lijst met verwijderde bestanden wissen?\n\n" +
         "Alleen de namen in deze lijst verdwijnen. Bestanden worden hierdoor niet teruggezet en ook niet verwijderd; " +
         "wat in de Prullenbak staat, blijft daar staan.";
 
     public const string UninstallConfirm =
-        "PraktijkClean verwijderen?\n\n" +
         "Dit haalt voor deze gebruiker weg: de geplande taak, het opschoonscript, de instellingen, het logboek (met de lijst verwijderde bestanden), het icoon in " +
         "het systeemvak, de snelkoppeling in het Startmenu en de vermelding bij Instellingen > Apps.\n\n" +
         "Uw eigen bestanden (Bureaublad, Downloads en andere mappen) worden NIET aangeraakt. Wat al in de Prullenbak staat, blijft daar staan.";
@@ -119,6 +115,6 @@ internal static class Texts
         "bij voorkeur gewoon (niet 'Als administrator uitvoeren') onder het account van de gebruiker van deze werkplek.";
 
     public const string NotWindows11 =
-        "Deze eerste versie van PraktijkClean is gemaakt en getest voor Windows 11. Op deze Windows-versie werkt " +
-        "het mogelijk niet goed. Toch doorgaan?";
+        "Deze versie van PraktijkClean is gemaakt en getest voor Windows 11. Op deze Windows-versie werkt " +
+        "het mogelijk niet goed.";
 }

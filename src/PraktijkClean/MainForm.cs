@@ -712,7 +712,7 @@ internal sealed class MainForm : Form
     private void OnRecurseChanged()
     {
         if (_loadingUi) return;
-        if (_chkRecurse.Checked && !Confirm(Texts.RecurseWarning))
+        if (_chkRecurse.Checked && !Confirm("Ook submappen doorzoeken?", Texts.RecurseWarning, "Submappen doorzoeken", ConfirmIcon.Warning))
         {
             _loadingUi = true; _chkRecurse.Checked = false; _loadingUi = false;
             return;
@@ -727,7 +727,7 @@ internal sealed class MainForm : Form
         {
             var check = CheckPath(SelectedFolder.ExpectedPath);
             string warning = (check.IsSync ? Texts.SyncWarning : Texts.NetworkWarning) + Texts.AllowSyncConfirm;
-            if (!Confirm(warning))
+            if (!Confirm("Opschonen op deze locatie toch toestaan?", warning, "Toch toestaan", ConfirmIcon.Warning))
             {
                 _loadingUi = true; _chkAllowSync.Checked = false; _loadingUi = false;
                 return;
@@ -741,7 +741,7 @@ internal sealed class MainForm : Form
     {
         _numBinDays.Enabled = _chkEmptyBin.Checked;
         if (_loadingUi) return;
-        if (_chkEmptyBin.Checked && !Confirm(Texts.EmptyBinConfirm, MessageBoxIcon.Warning))
+        if (_chkEmptyBin.Checked && !Confirm("Prullenbak automatisch legen?", Texts.EmptyBinConfirm, "Automatisch legen", ConfirmIcon.Warning))
         {
             _loadingUi = true; _chkEmptyBin.Checked = false; _loadingUi = false;
             _numBinDays.Enabled = false;
@@ -890,7 +890,7 @@ internal sealed class MainForm : Form
 
     private Task OnUninstall()
     {
-        if (!Confirm(Texts.UninstallConfirm, MessageBoxIcon.Warning)) return Task.CompletedTask;
+        if (!Confirm("PraktijkClean verwijderen?", Texts.UninstallConfirm, "PraktijkClean verwijderen", ConfirmIcon.Warning)) return Task.CompletedTask;
         Info(AppUninstall.Run(_layout));
         // PraktijkClean is weg: het venster sluiten (zonder te vragen om op te slaan, want dan installeert het opnieuw).
         _dirty = false;
@@ -993,7 +993,7 @@ internal sealed class MainForm : Form
 
     private void OnClearDeletedList()
     {
-        if (!Confirm(Texts.ClearDeletedListConfirm)) return;
+        if (!Confirm("Lijst met verwijderde bestanden wissen?", Texts.ClearDeletedListConfirm, "Lijst wissen")) return;
         try { DeletedFilesList.Clear(_layout.DeletedListPath); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Warn("De lijst kon niet worden gewist: " + ex.Message); return; }
         _deletedStamp = "";
@@ -1028,10 +1028,11 @@ internal sealed class MainForm : Form
     {
         if (_busy) { e.Cancel = true; return; }
         if (!_dirty || !File.Exists(_layout.ConfigPath)) return;
-        var answer = MessageBox.Show(this, "Er zijn niet-opgeslagen wijzigingen. Nu opslaan?", Texts.AppTitle,
-            MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
-        if (answer == DialogResult.Cancel) { e.Cancel = true; return; }
-        if (answer == DialogResult.Yes)
+        int answer = ConfirmDialog.Show(this, "Wijzigingen opslaan?",
+            "U heeft instellingen gewijzigd die nog niet zijn opgeslagen.", ConfirmIcon.Info,
+            defaultIndex: 0, cancelIndex: 2, "Opslaan", "Niet opslaan", ConfirmDialog.Cancel);
+        if (answer == 2) { e.Cancel = true; return; }
+        if (answer == 0)
         {
             try { SaveSettings(showConfirmation: false); }
             catch (InvalidOperationException ex) { Warn(ex.Message); e.Cancel = true; }
@@ -1204,9 +1205,10 @@ internal sealed class MainForm : Form
     {
         var f = SelectedFolder;
         if (f is null) return;
-        if (!f.Recurse && !Confirm("Submappen worden nu niet doorzocht: PraktijkClean kijkt alleen naar bestanden die direct in " +
-                                   $"'{f.DisplayName}' staan. Een uitgesloten submap is pas nodig als u 'Ook submappen doorzoeken' aanzet.\n\n" +
-                                   "Toch een submap kiezen?"))
+        if (!f.Recurse && !Confirm("Toch een submap uitsluiten?",
+                                   "Submappen worden nu niet doorzocht: PraktijkClean kijkt alleen naar bestanden die direct in " +
+                                   $"'{f.DisplayName}' staan. Een uitgesloten submap is pas nodig als u 'Ook submappen doorzoeken' aanzet.",
+                                   "Submap kiezen…", acceptIsDefault: true))
             return;
         using var dialog = new FolderBrowserDialog
         {
@@ -1259,8 +1261,9 @@ internal sealed class MainForm : Form
         var f = SelectedFolder;
         var items = _lstExclusions.SelectedItems.Cast<ListViewItem>().Select(i => i.Tag).OfType<ExclusionItem>().ToList();
         if (f is null || items.Count == 0) return;
-        string what = items.Count == 1 ? $"'{items[0].Value}'" : $"deze {items.Count} uitzonderingen";
-        if (!Confirm($"Uitzondering {what} verwijderen?\n\nBestanden die hieronder vallen, kunnen daarna weer worden opgeruimd.")) return;
+        string heading = items.Count == 1 ? $"Uitzondering '{items[0].Value}' verwijderen?" : $"Deze {items.Count} uitzonderingen verwijderen?";
+        if (!Confirm(heading, "Bestanden die hieronder vallen, kunnen daarna weer worden opgeruimd.",
+                     items.Count == 1 ? "Uitzondering verwijderen" : "Uitzonderingen verwijderen")) return;
         foreach (var item in items) Exclusions.Remove(f, item);
         ExclusionsChanged();
     }
@@ -1304,10 +1307,11 @@ internal sealed class MainForm : Form
         if (_config.Folders.Any(f => PathRules.PathEquals(f.ExpectedPath, path))) { Warn("Deze map staat al in de lijst."); return; }
         if (_config.Folders.Any(f => PathRules.IsInside(path, f.ExpectedPath) || PathRules.IsInside(f.ExpectedPath, path)))
         {
-            if (!Confirm("Deze map overlapt met een map die al in de lijst staat. Dat kan verwarrend zijn. Toch toevoegen?")) return;
+            if (!Confirm("Map overlapt met een andere map", "Deze map ligt in (of om) een map die al in de lijst staat. Dat kan verwarrend zijn.",
+                         "Toch toevoegen", ConfirmIcon.Warning)) return;
         }
         string extra = check.Warnings.Count > 0 ? "\n\nLet op:\n• " + string.Join("\n• ", check.Warnings) : "";
-        if (!Confirm(string.Format(Texts.AddFolderConfirm, path, extra))) return;
+        if (!Confirm("Deze map toevoegen?", string.Format(Texts.AddFolderConfirm, path, extra), "Map toevoegen")) return;
 
         var folder = ConfigStore.CreateCustomFolder(ConfigStore.NextCustomId(_config), path);
         _config.Folders.Add(folder);
@@ -1320,8 +1324,8 @@ internal sealed class MainForm : Form
     {
         var f = SelectedFolder;
         if (f is null || f.Type != FolderTypes.Custom) return;
-        if (!Confirm($"Map '{f.DisplayName}' uit PraktijkClean verwijderen?\n\nDe map en de bestanden erin blijven gewoon bestaan; " +
-                     "PraktijkClean ruimt er alleen niet meer in op.")) return;
+        if (!Confirm($"Map '{f.DisplayName}' uit de lijst halen?", "De map en de bestanden erin blijven gewoon bestaan; " +
+                     "PraktijkClean ruimt er alleen niet meer in op.", "Uit de lijst halen", acceptIsDefault: true)) return;
         _config.Folders.Remove(f);
         _lstFolders.Items.Remove(f);
         if (_lstFolders.Items.Count > 0) _lstFolders.SelectedIndex = 0;
@@ -1346,9 +1350,21 @@ internal sealed class MainForm : Form
         if (!EnsureSaved()) return;
         var report = await _runner.SimulateAsync();
         if (!CheckReport(report)) return;
+        ShowSimulation(report);
+    }
+
+    private void ShowSimulation(RunReport report)
+    {
         using var form = new SimulationResultForm(report, _config, AddExclusionsFromSimulation);
         form.ShowDialog(this);
     }
+
+    /// <summary>Knoppen voor een vraag waarbij eerst de simulatie bekeken kan worden; standaard staat die middelste knop.</summary>
+    private const int ChoiceGo = 0, ChoiceSimulate = 1, ChoiceCancel = 2;
+
+    private int AskWithSimulation(string heading, string body, string action) =>
+        ConfirmDialog.Show(this, heading, body, ConfirmIcon.Warning, defaultIndex: ChoiceSimulate, cancelIndex: ChoiceCancel,
+                           action, "Eerst simulatie bekijken…", ConfirmDialog.Cancel);
 
     private async Task OnActivateOrDeactivate()
     {
@@ -1371,24 +1387,30 @@ internal sealed class MainForm : Form
         }
         if (!EnsureSaved()) return;
 
-        // Eerst laten zien wat er bij de huidige instellingen zou gebeuren.
-        var report = await _runner.SimulateAsync();
-        if (!CheckReport(report)) return;
-        var sb = new StringBuilder();
-        sb.AppendLine("Automatische opschoning activeren?").AppendLine();
-        sb.AppendLine($"Bij de huidige instellingen komen nu {report.Candidates} bestand(en) ({Format.Bytes(report.CandidateBytes)}) in aanmerking voor verwijdering.");
-        foreach (var f in report.Folders.Where(f => f.Status is "Geblokkeerd" or "Fout"))
-            sb.AppendLine($"• {NameOf(f.Id)}: {f.Message}");
-        sb.AppendLine();
-        sb.AppendLine("Vanaf nu worden oude bestanden automatisch " +
-                      (_config.DeleteMode == DeleteModes.Permanent ? "DEFINITIEF verwijderd" : "naar de Prullenbak verplaatst") +
-                      ": " + MomentText() + ".");
-        if (report.RecycleBin is { } bin)
-            sb.AppendLine(BinText() + $" Nu komen daarvoor {bin.Candidates} item(s) ({Format.Bytes(bin.CandidateBytes)}) in aanmerking.");
-        if (report.Candidates > _config.MaxFilesPerRun)
-            sb.AppendLine().AppendLine($"Let op: dat is meer dan het maximum van {_config.MaxFilesPerRun} per keer. Zolang dat zo is, wordt er uit voorzorg niets verwijderd.");
-        sb.AppendLine().Append("Tip: bekijk eerst de details met 'Simulatie bekijken'. U kunt later altijd pauzeren of terug naar simulatiemodus.");
-        if (!Confirm(sb.ToString(), MessageBoxIcon.Warning)) return;
+        // Eerst laten zien wat er bij de huidige instellingen zou gebeuren. Na 'Eerst simulatie bekijken' (waarin
+        // uitzonderingen kunnen worden toegevoegd) opnieuw rekenen en opnieuw vragen.
+        while (true)
+        {
+            var report = await _runner.SimulateAsync();
+            if (!CheckReport(report)) return;
+            var sb = new StringBuilder();
+            sb.AppendLine($"Bij de huidige instellingen komen nu {report.Candidates} bestand(en) ({Format.Bytes(report.CandidateBytes)}) in aanmerking voor verwijdering.");
+            foreach (var f in report.Folders.Where(f => f.Status is "Geblokkeerd" or "Fout"))
+                sb.AppendLine($"• {NameOf(f.Id)}: {f.Message}");
+            sb.AppendLine();
+            sb.AppendLine("Vanaf nu worden oude bestanden automatisch " +
+                          (_config.DeleteMode == DeleteModes.Permanent ? "DEFINITIEF verwijderd" : "naar de Prullenbak verplaatst") +
+                          ": " + MomentText() + ".");
+            if (report.RecycleBin is { } bin)
+                sb.AppendLine(BinText() + $" Nu komen daarvoor {bin.Candidates} item(s) ({Format.Bytes(bin.CandidateBytes)}) in aanmerking.");
+            if (report.Candidates > _config.MaxFilesPerRun)
+                sb.AppendLine().AppendLine($"Let op: dat is meer dan het maximum van {_config.MaxFilesPerRun} per keer. Zolang dat zo is, wordt er uit voorzorg niets verwijderd.");
+            sb.AppendLine().Append("U kunt later altijd pauzeren of terug naar simulatiemodus.");
+            int choice = AskWithSimulation("Automatisch opruimen activeren?", sb.ToString(), "Activeren");
+            if (choice == ChoiceSimulate) { ShowSimulation(report); continue; }
+            if (choice != ChoiceGo) return;
+            break;
+        }
 
         _installer.ActivateAutomaticCleanup(_config);
         _dirty = false;
@@ -1410,29 +1432,34 @@ internal sealed class MainForm : Form
     private async Task OnCleanNow()
     {
         if (!EnsureSaved()) return;
-        var preview = await _runner.SimulateAsync();
-        if (!CheckReport(preview)) return;
-        int binCount = preview.RecycleBin?.Candidates ?? 0;
-        if (preview.Candidates == 0 && binCount == 0)
+        while (true)
         {
-            Info("Er zijn op dit moment geen bestanden die in aanmerking komen. Er is niets verwijderd.");
-            return;
+            var preview = await _runner.SimulateAsync();
+            if (!CheckReport(preview)) return;
+            int binCount = preview.RecycleBin?.Candidates ?? 0;
+            if (preview.Candidates == 0 && binCount == 0)
+            {
+                Info("Er zijn op dit moment geen bestanden die in aanmerking komen. Er is niets verwijderd.");
+                return;
+            }
+            if (preview.Candidates > _config.MaxFilesPerRun)
+            {
+                Warn($"Er komen {preview.Candidates} bestanden in aanmerking; dat is meer dan het maximum van {_config.MaxFilesPerRun} per keer. " +
+                     "Uit voorzorg wordt er niets verwijderd. Controleer de simulatie en verhoog zo nodig het maximum.");
+                return;
+            }
+            string where = _config.DeleteMode == DeleteModes.Permanent
+                ? "DEFINITIEF verwijderd. Dit kan niet via Windows ongedaan worden gemaakt."
+                : "naar de Prullenbak verplaatst.";
+            string binLine = preview.RecycleBin is { } pb && pb.Candidates > 0
+                ? $"\n\nDaarnaast worden {pb.Candidates} item(s) ({Format.Bytes(pb.CandidateBytes)}) DEFINITIEF uit de Prullenbak verwijderd."
+                : "";
+            int choice = AskWithSimulation("Nu opruimen?",
+                $"Er worden nu {preview.Candidates} bestand(en) ({Format.Bytes(preview.CandidateBytes)}) {where}" + binLine, "Nu opruimen");
+            if (choice == ChoiceSimulate) { ShowSimulation(preview); continue; }
+            if (choice != ChoiceGo) return;
+            break;
         }
-        if (preview.Candidates > _config.MaxFilesPerRun)
-        {
-            Warn($"Er komen {preview.Candidates} bestanden in aanmerking; dat is meer dan het maximum van {_config.MaxFilesPerRun} per keer. " +
-                 "Uit voorzorg wordt er niets verwijderd. Controleer de simulatie en verhoog zo nodig het maximum.");
-            return;
-        }
-        string where = _config.DeleteMode == DeleteModes.Permanent
-            ? "DEFINITIEF verwijderd. Dit kan niet via Windows ongedaan worden gemaakt."
-            : "naar de Prullenbak verplaatst.";
-        string binLine = preview.RecycleBin is { } pb && pb.Candidates > 0
-            ? $"Daarnaast worden {pb.Candidates} item(s) ({Format.Bytes(pb.CandidateBytes)}) DEFINITIEF uit de Prullenbak verwijderd.\n\n"
-            : "";
-        if (!Confirm($"Er worden nu {preview.Candidates} bestand(en) ({Format.Bytes(preview.CandidateBytes)}) {where}\n\n" + binLine +
-                     "Wilt u eerst de lijst zien? Kies dan 'Nee' en gebruik 'Simulatie bekijken'.\n\nNu opruimen?", MessageBoxIcon.Warning))
-            return;
 
         var result = await _runner.CleanNowAsync();
         if (!CheckReport(result)) return;
@@ -1551,8 +1578,9 @@ internal sealed class MainForm : Form
 
     private static string Shorten(string s, int max) => s.Length <= max ? s.Trim() : s.Substring(0, max).Trim() + "…";
 
-    private bool Confirm(string text, MessageBoxIcon icon = MessageBoxIcon.Question) =>
-        MessageBox.Show(this, text, Texts.AppTitle, MessageBoxButtons.YesNo, icon, MessageBoxDefaultButton.Button2) == DialogResult.Yes;
+    /// <summary>Vraag met een duidelijke actieknop en "Annuleren" (zie <see cref="ConfirmDialog"/>).</summary>
+    private bool Confirm(string heading, string body, string accept, ConfirmIcon icon = ConfirmIcon.Info, bool acceptIsDefault = false) =>
+        ConfirmDialog.Ask(this, heading, body, accept, icon, acceptIsDefault: acceptIsDefault);
 
     private void Info(string text) => MessageBox.Show(this, text, Texts.AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);
     private void Warn(string text) => MessageBox.Show(this, text, Texts.AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
