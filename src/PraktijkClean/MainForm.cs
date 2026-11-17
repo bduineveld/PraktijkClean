@@ -64,6 +64,18 @@ internal sealed class MainForm : Form
     private readonly ToolStripMenuItem _miAbout = new("Over PraktijkClean");
 
     // ---------------------------------------------------------------- Tabblad Mappen
+    private bool _prewarming;
+    private int _prewarmNext;
+    private bool _prewarmSubscribed;
+    private string _diskStamp = "";
+
+    /// <summary>Wijzigt als een van de bestanden van PraktijkClean is veranderd (of elk uur, voor "morgen 12:30").</summary>
+    private string DiskStamp()
+    {
+        var parts = new[] { _layout.ConfigPath, _layout.StatusPath, _layout.LogPath, _layout.DeletedListPath, _layout.ScriptPath }
+            .Select(p => { var f = new FileInfo(p); return f.Exists ? f.LastWriteTimeUtc.Ticks + "/" + f.Length : "-"; });
+        return string.Join("|", parts) + "|" + TrayIntegration.IsEnabled() + "|" + DateTime.Now.ToString("yyyyMMddHH");
+    }
     private readonly TabControl _tabs = new() { Dock = DockStyle.Fill, Padding = new Point(14, 5) };
     private readonly ListBox _lstFolders = new() { Dock = DockStyle.Fill, IntegralHeight = false, DrawMode = DrawMode.OwnerDrawFixed };
     private readonly Button _btnAddFolder = new() { Text = "Map toevoegen…", AutoSize = true };
@@ -377,11 +389,20 @@ internal sealed class MainForm : Form
             FitDeletedColumns();
             _lstFolders.ItemHeight = Math.Min(255, (int)(_lstFolders.Font.Height * 2.7));
             FitWrapLabels();
+            BeginInvoke(new Action(PrewarmTabs));
         };
         _lstExclusions.Resize += (_, _) => { if (IsHandleCreated) BeginInvoke(new Action(FitExclusionColumns)); };
         _lstDeleted.Resize += (_, _) => { if (IsHandleCreated) BeginInvoke(new Action(FitDeletedColumns)); };
-        Resize += (_, _) => FitWrapLabels();
-        _tabs.SelectedIndexChanged += (_, _) => FitWrapLabels();
+        // Na vergroten/verkleinen kloppen de verborgen tabbladen niet meer: zodra het rustig is opnieuw voorbereiden.
+        Resize += (_, _) => { FitWrapLabels(); if (IsHandleCreated && Visible) PrewarmTabs(); };
+        // Tabblad wisselen: pas tekenen als het nieuwe tabblad helemaal klaar is (anders bouwt het zichtbaar op).
+        _tabs.Selecting += (_, _) => { if (!_prewarming) ScreenUpdate.StopDrawing(_tabs); };
+        _tabs.SelectedIndexChanged += (_, _) =>
+        {
+            if (_prewarming) return;
+            FitWrapLabels();
+            BeginInvoke(new Action(() => ScreenUpdate.ResumeDrawing(_tabs)));
+        };
 
         var tips = new ToolTip { AutoPopDelay = 15000 };
         tips.SetToolTip(_btnSave, "Slaat de instellingen op en werkt de geplande taak bij. Pas daarna gelden de wijzigingen. Er wordt niets verwijderd.");
@@ -487,9 +508,14 @@ internal sealed class MainForm : Form
     /// </summary>
     private void FitWrapLabels()
     {
+        // Eerst alle breedtes bepalen, dan alles in één keer toepassen: elke gewijzigde MaximumSize laat anders
+        // het hele tabblad opnieuw indelen (dat kostte per tabblad seconden).
+        var changes = new List<(Label Label, int Width)>();
         foreach (var l in _wrapLabels)
         {
-            if (l.Parent is not Control p || p is FlowLayoutPanel) continue;
+            // Alleen wat nu zichtbaar is: op een verborgen tabblad kloppen de breedtes niet, en dan zou elk bezoek aan
+            // dat tabblad alles opnieuw laten indelen.
+            if (!l.Visible || l.Parent is not Control p || p is FlowLayoutPanel) continue;
             int width;
             if (p is TableLayoutPanel t)
             {
@@ -506,8 +532,10 @@ internal sealed class MainForm : Form
                 width = p.ClientSize.Width - l.Left;
             }
             width -= l.Margin.Horizontal + 2;
-            if (width > 80 && l.MaximumSize.Width != width) l.MaximumSize = new Size(width, 0);
+            if (width > 80 && l.MaximumSize.Width != width) changes.Add((l, width));
         }
+        if (changes.Count == 0) return;
+        ScreenUpdate.Batch(this, () => { foreach (var (l, w) in changes) l.MaximumSize = new Size(w, 0); });
     }
 
     // =====================================================================================
@@ -566,7 +594,13 @@ internal sealed class MainForm : Form
 
         _footerTimer.Tick += (_, _) => { _footerTimer.Stop(); _footerFlash = ""; UpdateFooter(); };
         FormClosing += OnFormClosing;
-        Activated += (_, _) => { if (!_busy) { ReloadFromDisk(); RefreshStatus(); } };
+        // Terug in het venster: alleen bijwerken als er op schijf iets is veranderd (bijv. de geplande taak heeft
+        // gedraaid of het icoon in het systeemvak heeft gepauzeerd). Anders zou elke klik het hele venster hertekenen.
+        Activated += (_, _) =>
+        {
+            if (_busy || DiskStamp() == _diskStamp) return;
+            ScreenUpdate.Batch(this, () => { ReloadFromDisk(); RefreshStatus(); });
+        };
     }
 
     /// <summary>Elke map als twee regels: naam (vet) en wat er gebeurt (grijs).</summary>
@@ -1043,8 +1077,16 @@ internal sealed class MainForm : Form
     // Status
     // =====================================================================================
 
+    /// <summary>Werkt kop, tabblad Logboek en menu bij, in één keer (zie <see cref="ScreenUpdate.Batch"/>).</summary>
     private void RefreshStatus()
     {
+        ScreenUpdate.Batch(this, RefreshStatusCore);
+        FitWrapLabels();
+    }
+
+    private void RefreshStatusCore()
+    {
+        _diskStamp = DiskStamp();
         var state = _installer.GetState();
         var last = RunReport.TryLoadStatus(_layout.StatusPath);
         var problems = new List<string>();
@@ -1139,7 +1181,48 @@ internal sealed class MainForm : Form
         _btnLog.Enabled = !_busy && File.Exists(_layout.LogPath);
         _miUninstall.Enabled = installed || AppRegistration.IsRegistered() || Directory.Exists(_layout.BaseDirectory);
         UpdateFooter();
-        FitWrapLabels();
+    }
+
+    /// <summary>
+    /// Bouwt de andere tabbladen alvast op terwijl ze onzichtbaar zijn. Windows Forms maakt de onderdelen van een
+    /// tabblad pas aan als het voor het eerst wordt geopend, en dat kostte bij de eerste klik seconden.
+    /// </summary>
+    private void PrewarmTabs()
+    {
+        _prewarmNext = 0;
+        if (_prewarmSubscribed) return;
+        _prewarmSubscribed = true;
+        Application.Idle += OnIdlePrewarm;
+    }
+
+    /// <summary>
+    /// Eén tabblad per keer, alleen als er niets anders te doen is (Application.Idle), zodat klikken en typen voorgaan.
+    /// </summary>
+    private void OnIdlePrewarm(object? sender, EventArgs e)
+    {
+        if (IsDisposed || _prewarmNext >= _tabs.TabPages.Count)
+        {
+            Application.Idle -= OnIdlePrewarm;
+            _prewarmSubscribed = false;
+            return;
+        }
+        if (_busy) return;
+        int index = _prewarmNext++;
+        int selected = _tabs.SelectedIndex;
+        if (index == selected) return;
+        _prewarming = true;
+        ScreenUpdate.StopDrawing(_tabs);
+        try
+        {
+            _tabs.SelectedIndex = index;
+            FitWrapLabels();
+            _tabs.SelectedIndex = selected;
+        }
+        finally
+        {
+            _prewarming = false;
+            ScreenUpdate.ResumeDrawing(_tabs);
+        }
     }
 
     /// <summary>"vandaag 14:17", "morgen 12:30" of "17-11 12:30".</summary>
@@ -1525,9 +1608,12 @@ internal sealed class MainForm : Form
     {
         if (_busy) return;
         _busy = true;
-        SetButtonsEnabled(false);
+        ScreenUpdate.Batch(this, () =>
+        {
+            SetButtonsEnabled(false);
+            UpdateFooter(message);
+        });
         UseWaitCursor = true;
-        UpdateFooter(message);
         try
         {
             await action();
@@ -1546,9 +1632,12 @@ internal sealed class MainForm : Form
         {
             _busy = false;
             UseWaitCursor = false;
-            SetButtonsEnabled(true);
-            if (_closeAfterBusy) BeginInvoke(new Action(Close));
-            else RefreshStatus();
+            if (_closeAfterBusy) { SetButtonsEnabled(true); BeginInvoke(new Action(Close)); }
+            else
+            {
+                ScreenUpdate.Batch(this, () => { SetButtonsEnabled(true); RefreshStatusCore(); });
+                FitWrapLabels();
+            }
         }
     }
 

@@ -4,7 +4,7 @@
 
 Getest op een tweede Windows 11-computer (ARM64, build 26300, schermschaal 200 %):
 
-- `build.ps1` volledig: 59 scripttests en 48 C#-tests geslaagd; `PraktijkClean-1.3.0.exe` (288 kB) is gebouwd.
+- `build.ps1` volledig: 59 scripttests en 48 C#-tests geslaagd; `PraktijkClean-1.3.0.exe` (292 kB) is gebouwd.
 - Lijst verwijderde bestanden: met een eigen testmap twee keer opgeruimd (naar de Prullenbak en definitief); de
   namen staan in de lijst op het tabblad Logboek, zoeken filtert, "Niet bijhouden" + Opslaan wist de lijst direct,
   terugzetten naar "1 week" werkt. "Lijst wissen…" en dubbelklikken zijn alleen in de tests/code gecontroleerd.
@@ -16,6 +16,11 @@ Getest op een tweede Windows 11-computer (ARM64, build 26300, schermschaal 200 %
   "Eerst simulatie bekijken…" (standaardknop); na het sluiten van de simulatie komt de vraag opnieuw. Esc en het
   kruisje kiezen altijd de veilige knop. Getest met de activeringsvraag (met een demomap; Bureaublad en Downloads
   uitgeschakeld); de andere vragen gebruiken hetzelfde venster.
+- Snelheid (gemeten in deze VM, die PraktijkClean via x64-emulatie draait op 3730×2008 bij 200 %): pauzeren/hervatten
+  van ~2 s naar ~1 s; het eerste bezoek aan een tabblad van 1,5–4,7 s naar ~0,7–1 s (tabbladen worden op de
+  achtergrond voorbereid); het nieuwe tabblad of de nieuwe kleur verschijnt in één keer in plaats van stukje voor
+  stukje; terugklikken in het venster hertekent niets meer als er niets is veranderd. Op een gewone x64-pc is dit
+  allemaal veel sneller.
 - Nieuwe indeling: statuskop (grijs → blauw na opslaan), hoofdknop, menu "Meer", tabbladen Mappen /
   Planning en veiligheid / Logboek, onderbalk met "Niet-opgeslagen wijzigingen" en "Ongedaan maken". Knoppen en
   teksten passen bij 200 %; geen tekst valt meer buiten het venster.

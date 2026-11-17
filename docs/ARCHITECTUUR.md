@@ -49,6 +49,7 @@ src/PraktijkClean/               De beheerapp (vensters en teksten)
    MainForm.cs                   Hoofdvenster
    SimulationResultForm.cs       Venster met simulatieresultaat (met 'Uitsluiten' via rechtermuisknop)
    InputDialog.cs                Klein invoervenster (extensie of patroon)
+   ScreenUpdate.cs               Schermupdates in één keer (indeling opschorten, pas daarna tekenen)
    ConfirmDialog.cs              Vraagvenster met duidelijke knoppen ("Activeren", "Annuleren") in plaats van Ja/Nee
    AppRegistration.cs            Installatie als app: kopie in LOCALAPPDATA, Startmenu, Geïnstalleerde apps
    AppUninstall.cs               Volledig verwijderen (menu of /uninstall vanuit Instellingen > Apps)
