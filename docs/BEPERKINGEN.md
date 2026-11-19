@@ -26,6 +26,9 @@ Getest op dezelfde Windows 11-computer (ARM64, build 26300, schermschaal 200 %):
   opgeruimd. Getest met een kopie van de instellingen en een eigen testmap.
 - Tabbladen worden nu op de achtergrond voorbereid zonder ze even te selecteren; daardoor tekenen na het
   vergroten of verkleinen van het venster geen stukjes van een ander tabblad meer door het huidige heen.
+- Tabblad wisselen gemeten (Ctrl+Tab, tijd tot het scherm verandert): was 1,5–2,5 s naar *Planning en veiligheid* of
+  *Logboek*, nu 0,2–0,45 s. Oorzaak: tabbladen met de achtergrond van het thema (`UseVisualStyleBackColor`) laten elk
+  label die achtergrond opnieuw tekenen; nu een effen achtergrond in dezelfde kleur.
 - **Niet** getest: bijwerken vanaf de echte GitHub-release (kan pas bij de eerstvolgende release na 1.4.0); de
   melding en het menu-item van het systeemvak-icoon (alleen de code); groepsbeleid `DisableUpdates` (alleen de
   code); bijwerken achter een proxyserver.

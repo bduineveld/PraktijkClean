@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Windows.Forms.VisualStyles;
 using PraktijkClean.Core;
 using PraktijkClean.Core.Windows;
 
@@ -480,11 +481,32 @@ internal sealed class MainForm : Form
 
     private static TabPage Page(string title, Control content)
     {
-        var page = new TabPage(title) { UseVisualStyleBackColor = true };
+        // Effen achtergrond in de kleur van het thema, niet UseVisualStyleBackColor: dan is de achtergrond 'doorzichtig'
+        // en tekent elk label, paneel en vinkje het thema van het tabblad opnieuw achter zich. Dat waren honderden
+        // tekenrondes per tabwissel (gemeten ruim 1 seconde in de test-VM bij 200 % schermschaal).
+        var page = new TabPage(title) { UseVisualStyleBackColor = false, BackColor = TabBodyColor.Value };
         content.Dock = DockStyle.Fill;
         page.Controls.Add(content);
         return page;
     }
+
+    /// <summary>Kleur van het midden van een tabblad volgens het Windows-thema (Windows 11 lichtgrijs, Windows 10 wit).</summary>
+    private static readonly Lazy<Color> TabBodyColor = new(() =>
+    {
+        try
+        {
+            if (Application.RenderWithVisualStyles && VisualStyleRenderer.IsElementDefined(VisualStyleElement.Tab.Body.Normal))
+            {
+                using var bmp = new Bitmap(64, 64);
+                using (var g = Graphics.FromImage(bmp))
+                    new VisualStyleRenderer(VisualStyleElement.Tab.Body.Normal).DrawBackground(g, new Rectangle(0, 0, 64, 64));
+                var c = bmp.GetPixel(32, 32);
+                if (c.A == 255) return c;
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or System.ComponentModel.Win32Exception) { }
+        return SystemColors.Window;
+    });
 
     /// <summary>Een paneel dat kan scrollen als de inhoud niet past (kleine schermen, hoge schermschaal).</summary>
     private static Panel Scroller(TableLayoutPanel content, int padding = 0)
