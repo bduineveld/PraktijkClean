@@ -35,6 +35,7 @@ public sealed class AppConfig
         RecycleBinRetentionDays = 7;
         DeletedFilesListDays = 7;
         DefaultSubfolderLevel = SubfolderLevels.Light;
+        DefaultRetentionDays = ConfigStore.CustomFolderRetentionDays;
         Schedule = new ScheduleSettings();
         Folders = new List<FolderSettings>();
     }
@@ -93,6 +94,10 @@ public sealed class AppConfig
     /// </summary>
     [DataMember(Name = "defaultSubfolderLevel", Order = 13)]
     public string DefaultSubfolderLevel { get; set; } = "";
+
+    /// <summary>Bewaartermijn (dagen) voor een nieuw toegevoegde map. Alleen voor de app; ontbreekt = 30.</summary>
+    [DataMember(Name = "defaultRetentionDays", Order = 14)]
+    public int DefaultRetentionDays { get; set; }
 }
 
 public static class DeleteModes

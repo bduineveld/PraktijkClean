@@ -49,12 +49,6 @@ internal static class Texts
         "Let op vaste mappen die leeg mogen zijn, zoals een map waar de scanner naartoe schrijft: zet die bij " +
         "'Nooit verwijderen' als submap. Gebruik daarna eerst 'Simulatie bekijken'.";
 
-    public const string AddFolderConfirm =
-        "{0}\n\n" +
-        "Bestanden in deze map die ouder zijn dan de ingestelde bewaartermijn (standaard 30 dagen) komen in " +
-        "aanmerking voor verwijdering zodra automatische opschoning actief is.\n\n{2}\n\n" +
-        "Controleer altijd eerst met 'Simulatie bekijken'.{1}";
-
     public const string DeleteVersusDestroy =
         "Let op: verwijderen is niet hetzelfde als veilig vernietigen.\n\n" +
         "PraktijkClean verwijdert bestanden op de gewone Windows-manier. Met de optie 'Prullenbak' staan ze daarna " +
@@ -103,12 +97,18 @@ internal static class Texts
         "het systeemvak, de snelkoppeling in het Startmenu en de vermelding bij Instellingen > Apps.\n\n" +
         "Uw eigen bestanden (Bureaublad, Downloads en andere mappen) worden NIET aangeraakt. Wat al in de Prullenbak staat, blijft daar staan.";
 
-    public const string Installed =
+    public const string InstalledBase =
         "PraktijkClean is ingesteld en staat in simulatiemodus: er wordt nog niets verwijderd.\n\n" +
         "U vindt PraktijkClean voortaan in het Startmenu. Verwijderen kan via 'Meer > PraktijkClean verwijderen…' of via " +
         "Instellingen > Apps > Geïnstalleerde apps.\n\n" +
-        "Het gedownloade bestand (PraktijkClean-<versie>.exe) is niet meer nodig; dat mag u verwijderen.\n\n" +
-        "Volgende stap: klik op 'Simulatie bekijken…' om te zien wat er zou worden opgeruimd.";
+        "Het gedownloade bestand (PraktijkClean-<versie>.exe) is niet meer nodig; dat mag u verwijderen.";
+
+    public const string Installed =
+        InstalledBase + "\n\nVolgende stap: klik op 'Simulatie bekijken…' om te zien wat er zou worden opgeruimd.";
+
+    /// <summary>Na de startwizard (de simulatie is dan al getoond).</summary>
+    public const string InstalledAfterWizard =
+        InstalledBase + "\n\nKlopt de simulatie? Zet dan 'Automatisch opruimen' aan met de knop bovenaan.";
 
     public const string About =
         "PraktijkClean {0}\n\n" +

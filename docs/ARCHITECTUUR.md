@@ -41,6 +41,7 @@ src/PraktijkClean.Core/          Logica zonder venster: configuratie, validatie,
    PathRules.cs                  Controle van gekozen mappen in de app
    Exclusions.cs                 Uitzonderingen per map toevoegen/verwijderen (zelfde regels als het script)
    SubfolderLevels.cs            Submappen per map: Licht, Midden of Zwaar (recurse / removeEmptyFolders)
+   FirstRunSetup.cs              Keuzes uit de startwizard in de instellingen zetten (simulatiemodus blijft aan)
    LogSummary.cs                 Telt uit het logboek wat er in de afgelopen dagen is opgeruimd
    DeletedFilesList.cs           Lijst verwijderde bestanden lezen, inkorten en wissen
    UpdateCheck.cs                Nieuwe versie op GitHub herkennen en de releasehandtekening controleren
@@ -53,6 +54,10 @@ src/PraktijkClean/               De beheerapp (vensters en teksten)
    InputDialog.cs                Klein invoervenster (extensie of patroon)
    ScreenUpdate.cs               Schermupdates in één keer (indeling opschorten, pas daarna tekenen)
    ConfirmDialog.cs              Vraagvenster met duidelijke knoppen ("Activeren", "Annuleren") in plaats van Ja/Nee
+   DialogParts.cs                Bouwstenen voor vensters in dezelfde stijl (kop, tekst, knoppenbalk)
+   SubfolderCards.cs             De drie kaarten voor submappen (Licht/Midden/Zwaar) met voorbeeldboompje
+   NewFolderDialog.cs            Venster na "Map toevoegen…" en "Standaard voor nieuwe mappen…"
+   SetupWizard.cs                Startwizard bij de allereerste start (drie stappen en een overzicht)
    AppRegistration.cs            Installatie als app: kopie in LOCALAPPDATA, Startmenu, Geïnstalleerde apps
    AppUninstall.cs               Volledig verwijderen (menu of /uninstall vanuit Instellingen > Apps)
    Updater.cs                    Bijwerken met één klik: controleren, downloaden, goedkeuren, installeren

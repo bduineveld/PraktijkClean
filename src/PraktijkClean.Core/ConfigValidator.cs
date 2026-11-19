@@ -34,6 +34,8 @@ public static class ConfigValidator
             errors.Add("Kies of bestanden naar de Prullenbak gaan of definitief worden verwijderd.");
         if (!SubfolderLevels.IsValid(config.DefaultSubfolderLevel))
             errors.Add("Kies een standaardniveau voor submappen (Licht, Midden of Zwaar).");
+        if (config.DefaultRetentionDays is < 0 or > 3650)
+            errors.Add("De standaard bewaartermijn voor nieuwe mappen moet tussen 0 en 3650 dagen liggen.");
         if (config.RecycleBinRetentionDays is < 0 or > 3650)
             errors.Add("De termijn voor het legen van de Prullenbak moet tussen 0 en 3650 dagen liggen.");
         if (config.DeletedFilesListDays is < 0 or > DeletedFilesList.MaxDays)

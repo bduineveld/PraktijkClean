@@ -4,15 +4,23 @@
 
 Getest op dezelfde Windows 11-computer (ARM64, build 26300, schermschaal 200 %):
 
-- `build.ps1` volledig: 72 scripttests en 62 C#-tests geslaagd; `PraktijkClean-1.4.0.exe` (548 kB) is gebouwd.
+- `build.ps1` volledig: 72 scripttests en 66 C#-tests geslaagd; `PraktijkClean-1.4.0.exe` (578 kB) is gebouwd.
 - Submappen Licht/Midden/Zwaar met een eigen testmap (geneste lege mappen, een te nieuwe lege map, een map met een
-  nieuw bestand, een map met een oud bestand): keuzelijst per map met bevestiging (Annuleren zet de keuze terug),
-  standaardniveau op *Planning en veiligheid*, simulatie toont de lege submappen die weg zouden gaan, rechtermuisknop
+  nieuw bestand, een map met een oud bestand): eerst met een keuzelijst, daarna opnieuw met de drie kaarten (klik op
+  een zwaardere kaart vraagt om bevestiging; Annuleren laat de oude kaart staan), simulatie toont de lege submappen die weg zouden gaan, rechtermuisknop
   → "altijd laten staan" slaat de submap op als uitzondering. Echte opruiming (definitief, met een kopie van de
   instellingen): precies de verwachte drie lege mappen weg, uitgesloten, te nieuwe en niet-lege mappen bleven staan;
-  logboek en lijst verwijderde bestanden kloppen. **Niet** in de app getest: *Map toevoegen…* met standaardniveau
-  Zwaar (het Windows-mapvenster; de logica zit in de C#-tests) en lege mappen naar de Prullenbak (zelfde aanroep als
+  logboek en lijst verwijderde bestanden kloppen. **Niet** getest: lege mappen naar de Prullenbak (zelfde aanroep als
   voor bestanden, maar niet getest om de echte Prullenbak niet te raken; alleen definitief verwijderen is getest).
+- *Map toevoegen…* met een lege testmap: venster met bewaartermijn (30 dagen) en kaarten, *Ook submappen* gekozen en
+  "ook voor mappen die ik hierna toevoeg" aangevinkt; de map kwam in de lijst met 30 dagen en Midden. Het venster
+  *Standaard voor nieuwe mappen…* geopend. Het opslaan van de standaard zit in de C#-tests.
+- Startwizard: `config.json` tijdelijk weggehaald (met een kopie van de hele programmamap). Wizard verscheen bij de
+  start; "Kies minstens één map" bij geen enkele map; andere map via het mapvenster; 1 week en *Ook lege submappen*;
+  overzicht klopte; *Opslaan en simulatie bekijken* sloeg op in simulatiemodus en opende de simulatie, de melding
+  "PraktijkClean is ingesteld" kwam pas daarna. Om geen echte bestandsnamen te tonen zijn Bureaublad en Downloads
+  daarbij uitgevinkt. **Niet** getest: *Overslaan* (dan blijven de standaardinstellingen gewoon staan, net als zonder
+  wizard). Daarna is de oude programmamap teruggezet.
 - Bijwerken met één klik, met een tijdelijke testversie 1.4.1 die met de echte releasesleutel is ondertekend en via
   `UpdateSource` vanaf een eigen testadres werd aangeboden (het echte GitHub-adres is alleen in de tests gebruikt):
   blauwe balk na het openen, vraagvenster met de releasetekst, download met voortgang onderin, controle van de

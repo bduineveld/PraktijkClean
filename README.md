@@ -49,6 +49,21 @@ vermelding bij **Instellingen > Apps > Geïnstalleerde apps** (daar kan het ook 
 gedownloade bestand is daarna niet meer nodig. Een nieuwere versie installeert u door die gewoon te openen en op
 **Opslaan** te klikken; de instellingen blijven behouden.
 
+### De startwizard
+
+Bij de allereerste start (er is nog geen `config.json`) opent een korte wizard in drie stappen:
+
+1. **Welke mappen**: Bureaublad en/of Downloads, en eventueel andere mappen.
+2. **Hoe lang bewaren** (1 dag, 1 week of 1 maand) en **wat er met submappen gebeurt** (zie hieronder).
+3. **Waarheen en wanneer**: naar de Prullenbak (en die daarna legen) of direct definitief; elke dag op een
+   tijdstip en/of bij aanmelden.
+
+Daarna ziet u een overzicht en klikt u op **Opslaan en simulatie bekijken**: de instellingen worden opgeslagen in
+simulatiemodus en de simulatie opent meteen. Er wordt niets verwijderd tot u zelf automatisch opruimen aanzet.
+De gekozen bewaartermijn en submappen worden ook de standaard voor mappen die u later toevoegt. Met **Overslaan**
+gaat u verder met de standaardinstellingen en de stappen hieronder. Bij een beschadigde `config.json` verschijnt
+de wizard niet (dan ziet u een melding).
+
 ### In vijf stappen instellen
 
 1. **Controleer de mappen** (tabblad *Mappen*). Bureaublad en Downloads staan klaar met "ouder dan 1 dag": wat
@@ -115,13 +130,15 @@ verwijderd.
 
 ### Submappen: Licht, Midden of Zwaar
 
-Per map kiest u op het tabblad *Mappen* bij **Submappen**:
+Per map kiest u op het tabblad *Mappen* bij **Submappen** een van drie kaarten. Elke kaart laat met een klein
+voorbeeld zien wat er gebeurt: wat **rood doorgestreept** is, wordt opgeruimd als het ouder is dan de bewaartermijn.
+De streepjes rechtsboven geven aan hoe ver het gaat.
 
-- **Licht – submappen overslaan** (standaard): alleen bestanden direct in de map. Submappen en alles daarin
+- **Alleen deze map** (Licht, standaard): alleen bestanden direct in de map. Submappen en alles daarin
   blijven staan. Handig voor gebruikers: zet wat moet blijven in een submap, bijvoorbeeld `Bureaublad\Bewaren`.
-- **Midden – ook bestanden in submappen**: ook oude bestanden in submappen worden opgeruimd; de submappen zelf
+- **Ook submappen** (Midden): ook oude bestanden in submappen worden opgeruimd; de submappen zelf
   blijven altijd staan.
-- **Zwaar – ook lege submappen weghalen**: als Midden, en submappen die daarna leeg zijn (of al leeg waren) worden
+- **Ook lege submappen** (Zwaar): als Midden, en submappen die daarna leeg zijn (of al leeg waren) worden
   weggehaald, als ze ouder zijn dan de bewaartermijn. Een submap waar nog iets in staat (een nieuwer, verborgen of
   uitgesloten bestand) blijft altijd staan.
 
@@ -129,8 +146,13 @@ Naar een zwaarder niveau gaan vraagt eerst om bevestiging. Let bij Zwaar op vast
 zoals een map waar de scanner naartoe schrijft: zet die als submap bij *Nooit verwijderen*, of klik in het
 simulatievenster met de rechtermuisknop op de lege submap en kies "altijd laten staan".
 
-Op het tabblad *Planning en veiligheid* stelt u bij **Submappen bij een nieuwe map** in welk niveau een map krijgt
-die u daarna toevoegt (standaard Licht). Bestaande mappen veranderen daardoor niet.
+### Een map toevoegen en de standaard voor nieuwe mappen
+
+Na **Map toevoegen…** en het kiezen van de map opent een venster met de bewaartermijn en de drie kaarten voor
+submappen, al ingevuld met de standaard voor nieuwe mappen (bij een nieuwe installatie 30 dagen en *Alleen deze
+map*). Vink **Deze keuzes ook gebruiken voor mappen die ik hierna toevoeg** aan om ze meteen de nieuwe standaard te
+maken. Via de link **Standaard voor nieuwe mappen…** onder de lijst stelt u de standaard ook los in. Mappen die al in
+de lijst staan, veranderen daardoor niet. Zoals elke wijziging geldt dit pas na *Opslaan*.
 
 ### Uitzonderingen
 

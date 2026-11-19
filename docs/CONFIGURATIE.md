@@ -24,7 +24,8 @@ Een voorbeeld staat in [`script/config.example.json`](../script/config.example.j
 | `schedule.dailyTime` | `"UU:MM"` | `"12:30"` | Tijdstip (24-uursnotatie, lokale tijd). |
 | `schedule.atLogon` | true/false | `true` | Uitvoeren bij aanmelden (2 minuten na aanmelden). |
 | `folders` | lijst | Bureaublad, Downloads | Maximaal 20 mappen. |
-| `defaultSubfolderLevel` | `"light"` / `"medium"` / `"heavy"` | `"light"` | Alleen voor de app: het niveau voor submappen dat een **nieuw toegevoegde** map krijgt (*Submappen bij een nieuwe map*). Bestaande mappen veranderen er niet door. Mag ontbreken (= `"light"`); het script negeert dit veld. |
+| `defaultSubfolderLevel` | `"light"` / `"medium"` / `"heavy"` | `"light"` | Alleen voor de app: het niveau voor submappen dat een **nieuw toegevoegde** map krijgt (*Standaard voor nieuwe mappen…*, het vinkje bij *Map toevoegen…* of de startwizard). Bestaande mappen veranderen er niet door. Mag ontbreken (= `"light"`); het script negeert dit veld. |
+| `defaultRetentionDays` | getal 0–3650 | `30` | Alleen voor de app: de bewaartermijn die een **nieuw toegevoegde** map krijgt (op dezelfde plekken in te stellen). Mag ontbreken (= `30`); het script negeert dit veld. |
 
 De standaardwaarden zijn die van een nieuwe installatie (Bureaublad en Downloads met `retentionDays` 1). Ontbreekt
 in een bestaande `config.json` een veld, dan geldt de voorzichtige waarde: `deleteMode` `"permanent"`,

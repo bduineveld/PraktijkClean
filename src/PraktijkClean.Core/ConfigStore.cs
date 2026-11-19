@@ -12,6 +12,9 @@ public static class ConfigStore
     /// <summary>Standaard bewaartermijn voor Bureaublad en Downloads (dagen).</summary>
     public const int DefaultRetentionDays = 1;
 
+    /// <summary>Bewaartermijn van een zelf toegevoegde map als er (nog) geen eigen standaard is ingesteld.</summary>
+    public const int CustomFolderRetentionDays = 30;
+
     /// <summary>Standaard: zo lang blijft iets in de Prullenbak staan voordat PraktijkClean het definitief verwijdert (dagen).</summary>
     public const int DefaultRecycleBinDays = 1;
 
@@ -49,8 +52,14 @@ public static class ConfigStore
         Exclusions = DefaultExclusions(),
     };
 
-    /// <summary>Een zelf gekozen map, met het standaardniveau voor submappen uit de instellingen.</summary>
-    public static FolderSettings CreateCustomFolder(string id, string path, string subfolderLevel = SubfolderLevels.Light)
+    /// <summary>Een zelf gekozen map met de standaard voor nieuwe mappen uit de instellingen.</summary>
+    public static FolderSettings CreateCustomFolder(AppConfig config, string id, string path) =>
+        CreateCustomFolder(id, path, config.DefaultSubfolderLevel,
+            config.DefaultRetentionDays is >= 0 and <= 3650 ? config.DefaultRetentionDays : CustomFolderRetentionDays);
+
+    /// <summary>Een zelf gekozen map met een bepaald niveau voor submappen en bewaartermijn.</summary>
+    public static FolderSettings CreateCustomFolder(string id, string path, string subfolderLevel = SubfolderLevels.Light,
+                                                    int retentionDays = CustomFolderRetentionDays)
     {
         var f = new FolderSettings
         {
@@ -59,7 +68,7 @@ public static class ConfigStore
             Type = FolderTypes.Custom,
             Path = path,
             ExpectedPath = path,
-            RetentionDays = 30,
+            RetentionDays = retentionDays,
             Exclusions = DefaultExclusions(),
         };
         SubfolderLevels.Apply(f, SubfolderLevels.IsValid(subfolderLevel) ? subfolderLevel : SubfolderLevels.Light);
