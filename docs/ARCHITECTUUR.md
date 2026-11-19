@@ -42,6 +42,7 @@ src/PraktijkClean.Core/          Logica zonder venster: configuratie, validatie,
    Exclusions.cs                 Uitzonderingen per map toevoegen/verwijderen (zelfde regels als het script)
    LogSummary.cs                 Telt uit het logboek wat er in de afgelopen dagen is opgeruimd
    DeletedFilesList.cs           Lijst verwijderde bestanden lezen, inkorten en wissen
+   UpdateCheck.cs                Nieuwe versie op GitHub herkennen en de releasehandtekening controleren
    Compat.cs                     JSON lezen/schrijven en hulpmiddelen voor .NET Framework 4.8
    Windows/                      Windows-specifiek: Known Folders, Taakplanner (COM), gebruiker
 src/PraktijkClean/               De beheerapp (vensters en teksten)
@@ -53,10 +54,12 @@ src/PraktijkClean/               De beheerapp (vensters en teksten)
    ConfirmDialog.cs              Vraagvenster met duidelijke knoppen ("Activeren", "Annuleren") in plaats van Ja/Nee
    AppRegistration.cs            Installatie als app: kopie in LOCALAPPDATA, Startmenu, Geïnstalleerde apps
    AppUninstall.cs               Volledig verwijderen (menu of /uninstall vanuit Instellingen > Apps)
+   Updater.cs                    Bijwerken met één klik: controleren, downloaden, goedkeuren, installeren
    StatusInfo.cs                 Bepaalt de status (aan/simulatie/pauze/probleem) voor balk en icoon
    TrayContext.cs                Het icoon in het systeemvak (PraktijkClean-<versie>.exe /tray)
    AppIcons.cs                   App-icoon voor de vensters en systeemvak-icoon met statusbolletje
    Resources/                    app-venster.ico (16-64 px) en tray-N.png (systeemvak-icoon per formaat)
+tools/sign-release.sh            Ondertekent een release-exe (alleen op de computer met de releasesleutel)
 icon/                            Bron van het app-icoon: PraktijkClean.ico (16-256 px, in de exe) en de PNG's
    TrayIntegration.cs            Icoon aan/uit: kopie van de exe, opstartitem, afsluiten
 tests/Script/Run-ScriptTests.ps1 Tests voor het script (zonder externe modules)
@@ -177,6 +180,12 @@ datums. Zie [BEPERKINGEN.md](BEPERKINGEN.md).
    paden bevatten); alleen aantallen en het soort fout. Bestandsnamen staan alleen in de aparte lijst
    verwijderde bestanden, die de gebruiker zelf aanzet (standaard 1 week) en die zichzelf inkort. Bij een
    ongeldige configuratie raakt het script die lijst niet aan.
+12. **Programma weg, taak nog niet**: ontbreekt `PraktijkClean.exe` naast het script (bijvoorbeeld omdat iemand
+   alleen de exe of de map met de hand heeft weggegooid), dan verwijdert een geplande uitvoering niets meer
+   (actie "programma ontbreekt", exitcode 1). Wie het programma weggooit, verwacht niet dat er daarna nog
+   bestanden verdwijnen. Het script haalt de taak niet zelf weg: tijdens het bijwerken staat de exe heel even
+   niet op zijn plek, en dan moet de taak blijven bestaan. Simulatie en "Nu opruimen" (gestart door de app zelf)
+   vallen hier niet onder.
 
 ## Verwijderen: Prullenbak of definitief
 
@@ -223,10 +232,30 @@ Bij de eerste keer **Opslaan** (en daarna bij elke start, op de achtergrond) zor
 Er zijn geen administratorrechten nodig. Het kopiëren gebeurt op de achtergrond, omdat een virusscanner het
 schrijven van een nieuwe .exe flink kan vertragen.
 
-Verwijderen (`AppUninstall`, vanuit het menu of met `/uninstall`) haalt de taak, de eigen bestanden, de
-opstartregel van het icoon, de snelkoppeling en de Apps-vermelding weg. Een draaiende exe kan zichzelf niet
+Verwijderen (`AppUninstall`, vanuit het menu of met `/uninstall`) haalt de taak, de eigen bestanden (ook een
+eventuele download in `update\`), de opstartregel van het icoon, de snelkoppeling, de Apps-vermelding en
+`HKCU\Software\PraktijkClean` weg. Een draaiende exe kan zichzelf niet
 verwijderen: een verborgen PowerShell-proces wacht tot PraktijkClean is gesloten en verwijdert dan de
 geïnstalleerde exe en de lege map. Is het hoofdvenster nog open, dan vraagt `/uninstall` eerst om dat te sluiten.
+
+## Bijwerken met één klik
+
+`UpdateCheck` (Core, zonder netwerk) leest het antwoord van GitHub (`releases/latest`) en controleert de
+handtekening; `Updater` (app) doet het netwerkwerk en de installatie. Volgorde:
+
+1. App of icoon vraagt hooguit eens per 20 uur de nieuwste release op (tijdstip gedeeld via
+   `HKCU\Software\PraktijkClean\UpdateLastCheck`). Alleen releases met zowel `PraktijkClean-x.y.z.exe` als
+   `PraktijkClean-x.y.z.exe.sig`, geen concept/testversie, downloadadressen alleen via https op github.com.
+2. Na een klik op **Bijwerken**: download naar `%LOCALAPPDATA%\PraktijkClean\update\…exe.part`, dan controle van
+   grootte, RSA-handtekening (openbare sleutel in de app), productnaam en bestandsversie. Afgekeurd = weggegooid.
+3. De goedgekeurde exe start met `/update-install` en de app sluit. De nieuwe exe wacht op de app-mutex (max.
+   60 s), kopieert zichzelf via `AppRegistration.Install` (icoon wordt even gestopt en herstart), schrijft met
+   `Installer.SaveAndApply` het nieuwe script en de taak bij de bestaande `config.json`, en start de geïnstalleerde
+   app met `/updated`. Staat er intussen een nóg nieuwere versie, dan blijft het script van die versie staan.
+4. Bij de volgende start ruimt de app de updatemap op.
+
+Uitzetten per gebruiker (`CheckForUpdates` = 0) of voor iedereen via `HKLM\SOFTWARE\Policies\PraktijkClean\DisableUpdates`
+= 1. Details en het uitbrengen van een release: [BIJWERKEN.md](BIJWERKEN.md).
 
 ## Icoon in het systeemvak (optioneel)
 

@@ -78,7 +78,7 @@ internal static class AppRegistration
         string ps =
             $"Wait-Process -Id {pid} -Timeout 600 -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500; " +
             $"Remove-Item -LiteralPath {Q(layout.AppExePath)} -Force -ErrorAction SilentlyContinue; " +
-            $"foreach ($d in @({Q(layout.LogDirectory)}, {Q(layout.BaseDirectory)})) {{ " +
+            $"foreach ($d in @({Q(layout.LogDirectory)}, {Q(layout.UpdateDirectory)}, {Q(layout.BaseDirectory)})) {{ " +
             "if ((Test-Path -LiteralPath $d) -and -not (Get-ChildItem -LiteralPath $d -Force)) { Remove-Item -LiteralPath $d -ErrorAction SilentlyContinue } }";
         string encoded = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(ps));
         try
@@ -103,7 +103,7 @@ internal static class AppRegistration
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
     }
 
-    private static Version SelfVersion
+    public static Version SelfVersion
     {
         get
         {

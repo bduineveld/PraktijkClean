@@ -28,6 +28,7 @@ internal sealed class TrayContext : ApplicationContext
     private readonly SynchronizationContext _ui;
     private readonly Dictionary<StatusKind, Icon> _icons = new();
     private StatusKind? _lastKind;
+    private bool _checkingUpdate;
     private AppConfig? _config;
 
     public TrayContext()
@@ -70,6 +71,7 @@ internal sealed class TrayContext : ApplicationContext
             if (info.Kind == StatusKind.Problem && _lastKind != StatusKind.Problem)
                 _icon.ShowBalloonTip(10_000, "PraktijkClean", "PraktijkClean staat aan, maar de geplande taak ontbreekt of staat uit. Klik om de app te openen.", ToolTipIcon.Warning);
             _lastKind = info.Kind;
+            CheckForUpdate();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ScheduledTaskException or InvalidOperationException)
         {
@@ -99,6 +101,35 @@ internal sealed class TrayContext : ApplicationContext
             _menu.Items.Add(paused ? "Hervatten" : "Tijdelijk pauzeren", null, (_, _) => TogglePause(!paused));
         }
         _menu.Items.Add("Icoon verbergen", null, (_, _) => HideIcon());
+        if (Updater.Enabled && Updater.Available is Version v)
+        {
+            _menu.Items.Add(new ToolStripSeparator());
+            _menu.Items.Add($"Bijwerken naar versie {v.ToString(3)}…", null, (_, _) => OpenApp());
+        }
+    }
+
+    /// <summary>
+    /// Eens per 20 uur (gedeeld met de app) op de achtergrond kijken of er een nieuwe versie is; één melding per versie.
+    /// Klikken op de melding opent de app, waar de gebruiker zelf op 'Bijwerken' klikt.
+    /// </summary>
+    private void CheckForUpdate()
+    {
+        if (_checkingUpdate || !Updater.Enabled) return;
+        if (!Updater.CheckDue) { NotifyUpdate(); return; }
+        _checkingUpdate = true;
+        System.Threading.Tasks.Task.Run(Updater.CheckIfDueAsync).ContinueWith(_ => _ui.Post(_ =>
+        {
+            _checkingUpdate = false;
+            NotifyUpdate();
+        }, null));
+    }
+
+    private void NotifyUpdate()
+    {
+        if (Updater.Available is not Version v || Updater.AlreadyNotified(v)) return;
+        Updater.MarkNotified(v);
+        _icon.ShowBalloonTip(15_000, "Nieuwe versie van PraktijkClean",
+            $"Versie {v.ToString(3)} is beschikbaar. Klik hier om PraktijkClean te openen en bij te werken.", ToolTipIcon.Info);
     }
 
     private void TogglePause(bool pause)

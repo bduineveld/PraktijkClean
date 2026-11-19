@@ -211,6 +211,20 @@ public sealed class InstallerTests
     }
 
     [Test]
+    public void DeinstallerenRuimtGedownloadeUpdateOp()
+    {
+        using var tmp = new TempDir();
+        var inst = new Installer(new InstallLayout(tmp.Sub("app")), new FakeTaskService(), Env, Script);
+        inst.SaveAndApply(Config(tmp.Path));
+        Directory.CreateDirectory(inst.Layout.UpdateDirectory);
+        File.WriteAllText(Path.Combine(inst.Layout.UpdateDirectory, "PraktijkClean-9.9.9.exe"), "x");
+        File.WriteAllText(Path.Combine(inst.Layout.UpdateDirectory, "PraktijkClean-9.9.9.exe.part"), "x");
+        var r = inst.Uninstall();
+        Assert.Equal(0, r.RemainingItems.Count, "niets achtergebleven: " + string.Join(", ", r.RemainingItems));
+        Assert.False(Directory.Exists(inst.Layout.BaseDirectory), "map weg (ook de updatemap)");
+    }
+
+    [Test]
     public void TaakKanNietWordenAangemaakt()
     {
         using var tmp = new TempDir();

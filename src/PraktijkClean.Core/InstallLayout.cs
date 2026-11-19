@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 
 namespace PraktijkClean.Core;
 
@@ -32,6 +33,26 @@ public sealed class InstallLayout
     /// geïnstalleerde apps van Windows en het icoon in het systeemvak.
     /// </summary>
     public string AppExePath => Path.Combine(BaseDirectory, "PraktijkClean.exe");
+
+    /// <summary>Tijdelijke map voor een gedownloade nieuwe versie (zie UpdateCheck); wordt na bijwerken leeggemaakt.</summary>
+    public string UpdateDirectory => Path.Combine(BaseDirectory, "update");
+
+    /// <summary>Bestanden die PraktijkClean zelf in de updatemap kan hebben neergezet (alleen deze worden opgeruimd).</summary>
+    public string[] OwnedUpdateFiles()
+    {
+        try
+        {
+            var dir = new DirectoryInfo(UpdateDirectory);
+            if (!dir.Exists || (dir.Attributes & FileAttributes.ReparsePoint) != 0) return Array.Empty<string>();
+            return dir.GetFiles("PraktijkClean-*")
+                .Where(f => (f.Attributes & FileAttributes.ReparsePoint) == 0 &&
+                            (f.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                             f.Name.EndsWith(".exe.part", StringComparison.OrdinalIgnoreCase) ||
+                             f.Name.EndsWith(".exe.sig", StringComparison.OrdinalIgnoreCase)))
+                .Select(f => f.FullName).ToArray();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return Array.Empty<string>(); }
+    }
 
     /// <summary>
     /// De enige bestanden die PraktijkClean ooit zelf aanmaakt. Bij deïnstallatie worden

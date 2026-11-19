@@ -60,7 +60,7 @@ param(
 
 Set-StrictMode -Version 2.0
 
-$script:PcVersion = '1.3.0'
+$script:PcVersion = '1.4.0'
 $script:PcSchemaVersion = 1
 $script:PcMaxConfigBytes = 262144
 $script:PcMaxEntriesPerFolder = 100000
@@ -863,7 +863,9 @@ function Invoke-PcCleanup {
         [bool]$ConfirmedByUser,
         [bool]$IncludeFileNames,
         [datetime]$NowUtc,
-        [string]$InstallDir
+        [string]$InstallDir,
+        # Fail-safe: de geplande taak verwijdert niets meer als PraktijkClean.exe zelf weg is (zie Invoke-PcMain).
+        [bool]$AppMissing = $false
     )
     $result = [pscustomobject]@{
         Version         = $script:PcVersion
@@ -911,6 +913,15 @@ function Invoke-PcCleanup {
         if ($cfg.Paused) {
             $result.Action = 'gepauzeerd'
             $result.Messages.Add('Automatische opschoning is gepauzeerd.')
+            return $result
+        }
+        if ($AppMissing) {
+            # Het programma is verwijderd (of weggegooid) maar de taak en dit script staan er nog: dan nooit
+            # meer iets verwijderen. Namen in de lijst verwijderde bestanden verlopen wel gewoon.
+            $result.ExitCode = 1
+            $result.Action = 'programma ontbreekt'
+            $result.ErrorCount = 1
+            $result.Messages.Add('PraktijkClean.exe ontbreekt (programma verwijderd?). Uit voorzorg wordt er niets verwijderd. Installeer PraktijkClean opnieuw of verwijder de geplande taak.')
             return $result
         }
         $doDelete = (-not $cfg.SimulationMode) -and $cfg.AutomaticCleanupConfirmed
@@ -1219,7 +1230,10 @@ function Invoke-PcMain {
         }
 
         $now = [DateTime]::UtcNow
-        $result = Invoke-PcCleanup -ConfigPath $ConfigPath -Mode $Mode -ConfirmedByUser $ConfirmedByUser -IncludeFileNames $includeNames -NowUtc $now -InstallDir $installDir
+        # Fail-safe: zonder de geinstalleerde app (bijv. alleen de map of de exe weggegooid) verwijdert de geplande
+        # taak niets meer. Handmatig ('Nu opruimen'/simulatie) wordt altijd door de app zelf gestart.
+        $appMissing = ($Mode -eq 'Scheduled') -and -not (Test-Path -LiteralPath (Join-Path $installDir 'PraktijkClean.exe') -PathType Leaf)
+        $result = Invoke-PcCleanup -ConfigPath $ConfigPath -Mode $Mode -ConfirmedByUser $ConfirmedByUser -IncludeFileNames $includeNames -NowUtc $now -InstallDir $installDir -AppMissing $appMissing
         $status = Get-PcStatusObject -Result $result -Trigger $Trigger -NowUtc $now
 
         # Vaste opbouw: de beheerapp leest de aantallen hieruit voor het overzicht van de afgelopen dagen.

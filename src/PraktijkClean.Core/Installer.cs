@@ -133,7 +133,7 @@ public sealed class Installer
         try { _tasks.Delete(TaskName); }
         catch (ScheduledTaskException ex) { taskRemoved = false; taskError = ex.Message; }
 
-        foreach (var file in _layout.OwnedFiles)
+        foreach (var file in _layout.OwnedFiles.Concat(_layout.OwnedUpdateFiles()))
         {
             try
             {
@@ -145,6 +145,7 @@ public sealed class Installer
             catch (UnauthorizedAccessException) { }
         }
         TryRemoveEmptyDirectory(_layout.LogDirectory);
+        TryRemoveEmptyDirectory(_layout.UpdateDirectory);
         TryRemoveEmptyDirectory(_layout.BaseDirectory);
 
         var remaining = new List<string>();

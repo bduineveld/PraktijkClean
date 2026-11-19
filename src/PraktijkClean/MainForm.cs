@@ -62,9 +62,22 @@ internal sealed class MainForm : Form
     private readonly ToolStripMenuItem _miOpenDir = new("Programmamap openen");
     private readonly ToolStripMenuItem _miUninstall = new("PraktijkClean verwijderen…");
     private readonly ToolStripMenuItem _miAbout = new("Over PraktijkClean");
+    private readonly ToolStripMenuItem _miCheckUpdate = new("Controleren op nieuwe versie…");
+    private readonly ToolStripMenuItem _miAutoUpdate = new("Automatisch controleren op nieuwe versies");
+
+    // ---------------------------------------------------------------- Balk "nieuwe versie" (onder de kop)
+    private readonly TableLayoutPanel _updateBar = new()
+    {
+        Dock = DockStyle.Top, AutoSize = true, ColumnCount = 4, Visible = false,
+        Padding = new Padding(16, 6, 12, 6), BackColor = Color.FromArgb(232, 241, 251),
+    };
+    private readonly Label _lblUpdate = new() { AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 0, 12, 0) };
+    private readonly Button _btnUpdate = new() { Text = "Bijwerken…", AutoSize = true, Padding = new Padding(8, 1, 8, 1), UseVisualStyleBackColor = true };
+    private readonly Button _btnUpdateLater = new() { Text = "Later", AutoSize = true, Padding = new Padding(4, 1, 4, 1), Margin = new Padding(8, 3, 0, 3), UseVisualStyleBackColor = true };
+    private bool _updateBarDismissed;
+    private readonly bool _justUpdated;
 
     // ---------------------------------------------------------------- Tabblad Mappen
-    private bool _prewarming;
     private int _prewarmNext;
     private bool _prewarmSubscribed;
     private string _diskStamp = "";
@@ -135,8 +148,9 @@ internal sealed class MainForm : Form
     private readonly Button _btnRevert = new() { Text = "Ongedaan maken", AutoSize = true };
     private readonly Button _btnSave = new() { Text = "Opslaan", AutoSize = true, Padding = new Padding(14, 2, 14, 2) };
 
-    public MainForm()
+    public MainForm(bool justUpdated = false)
     {
+        _justUpdated = justUpdated;
         var env = WindowsSystem.CreateTaskEnvironment();
         _installer = new Installer(_layout, new WindowsTaskSchedulerService(), env, ReadEmbeddedScript());
         _runner = new ScriptRunner(WindowsSystem.PowerShellPath, _layout);
@@ -155,6 +169,9 @@ internal sealed class MainForm : Form
             if (startupNotice is not null) Info(startupNotice);
             // Al geïnstalleerd: de geïnstalleerde kopie, het Startmenu en de Apps-lijst bijwerken (op de achtergrond).
             if (File.Exists(_layout.ConfigPath)) StartRegistration(firstInstallInfo: false);
+            if (_justUpdated) Flash($"✓ Bijgewerkt naar versie {Program.Version}. Uw instellingen zijn behouden.");
+            _ = CheckForUpdatesInBackground();
+            Task.Run(() => Updater.CleanUpDownloads(_layout));
         };
 
         // Een tweede start (bijv. via het icoon in het systeemvak of het Startmenu) haalt dit venster naar voren.
@@ -254,9 +271,22 @@ internal sealed class MainForm : Form
         {
             _miCleanNow, _miPause, _miSimulationMode, new ToolStripSeparator(),
             _miTray, _miLog, new ToolStripSeparator(),
+            _miCheckUpdate, _miAutoUpdate, new ToolStripSeparator(),
             _miTrouble, _miUninstall, new ToolStripSeparator(),
             _miAbout,
         });
+        _miCheckUpdate.ToolTipText = "Kijkt op GitHub of er een nieuwere versie is. Bijwerken gebeurt pas na uw bevestiging.";
+        _miAutoUpdate.ToolTipText = "Eens per dag kijken of er een nieuwe versie is en dat melden. Er wordt niets over deze pc verstuurd.";
+
+        // ---- Balk "nieuwe versie beschikbaar"
+        _btnUpdate.Font = new Font(Font, FontStyle.Bold);
+        _updateBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _updateBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _updateBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _updateBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _updateBar.Controls.Add(_lblUpdate, 0, 0);
+        _updateBar.Controls.Add(_btnUpdate, 1, 0);
+        _updateBar.Controls.Add(_btnUpdateLater, 2, 0);
         _miTrouble.DropDownItems.AddRange(new ToolStripItem[] { _miRepair, _miOpenDir });
         _miCleanNow.ToolTipText = "Ruimt direct op, na een overzicht en uw bevestiging.";
         _miRepair.ToolTipText = "Zet het opschoonscript en de geplande taak opnieuw neer met uw huidige instellingen. " +
@@ -369,6 +399,7 @@ internal sealed class MainForm : Form
         Controls.Add(middle);
         Controls.Add(footerLine);
         Controls.Add(footer);
+        Controls.Add(_updateBar);
         Controls.Add(_header);
 
         _lstExclusions.Columns.Add("Soort", 90);
@@ -396,10 +427,9 @@ internal sealed class MainForm : Form
         // Na vergroten/verkleinen kloppen de verborgen tabbladen niet meer: zodra het rustig is opnieuw voorbereiden.
         Resize += (_, _) => { FitWrapLabels(); if (IsHandleCreated && Visible) PrewarmTabs(); };
         // Tabblad wisselen: pas tekenen als het nieuwe tabblad helemaal klaar is (anders bouwt het zichtbaar op).
-        _tabs.Selecting += (_, _) => { if (!_prewarming) ScreenUpdate.StopDrawing(_tabs); };
+        _tabs.Selecting += (_, _) => ScreenUpdate.StopDrawing(_tabs);
         _tabs.SelectedIndexChanged += (_, _) =>
         {
-            if (_prewarming) return;
             FitWrapLabels();
             BeginInvoke(new Action(() => ScreenUpdate.ResumeDrawing(_tabs)));
         };
@@ -506,16 +536,18 @@ internal sealed class MainForm : Form
     /// Een automatisch groeiend label breekt in WinForms alleen af met een maximale breedte. Die hangt af van de
     /// vensterbreedte en de schermschaal, dus wordt hij bij elke formaatwijziging opnieuw berekend.
     /// </summary>
-    private void FitWrapLabels()
+    /// <param name="hiddenPage">Alleen de labels op dit (verborgen) tabblad; zonder: alles wat nu zichtbaar is.</param>
+    private void FitWrapLabels(Control? hiddenPage = null)
     {
         // Eerst alle breedtes bepalen, dan alles in één keer toepassen: elke gewijzigde MaximumSize laat anders
         // het hele tabblad opnieuw indelen (dat kostte per tabblad seconden).
         var changes = new List<(Label Label, int Width)>();
         foreach (var l in _wrapLabels)
         {
-            // Alleen wat nu zichtbaar is: op een verborgen tabblad kloppen de breedtes niet, en dan zou elk bezoek aan
-            // dat tabblad alles opnieuw laten indelen.
-            if (!l.Visible || l.Parent is not Control p || p is FlowLayoutPanel) continue;
+            // Alleen wat nu zichtbaar is, of het verborgen tabblad dat net op de huidige venstergrootte is ingedeeld:
+            // op een tabblad dat nog niet is ingedeeld kloppen de breedtes niet.
+            bool include = hiddenPage is null ? l.Visible : hiddenPage.Contains(l);
+            if (!include || l.Parent is not Control p || p is FlowLayoutPanel) continue;
             int width;
             if (p is TableLayoutPanel t)
             {
@@ -535,7 +567,7 @@ internal sealed class MainForm : Form
             if (width > 80 && l.MaximumSize.Width != width) changes.Add((l, width));
         }
         if (changes.Count == 0) return;
-        ScreenUpdate.Batch(this, () => { foreach (var (l, w) in changes) l.MaximumSize = new Size(w, 0); });
+        ScreenUpdate.Batch(hiddenPage ?? this, () => { foreach (var (l, w) in changes) l.MaximumSize = new Size(w, 0); });
     }
 
     // =====================================================================================
@@ -591,6 +623,11 @@ internal sealed class MainForm : Form
         _miOpenDir.Click += (_, _) => OnOpenDirectory();
         _miUninstall.Click += async (_, _) => await RunBusy("Bezig met verwijderen…", OnUninstall);
         _miAbout.Click += (_, _) => Info(string.Format(Texts.About, Program.Version, AppRegistration.WebsiteUrl));
+        _miCheckUpdate.Click += async (_, _) => await RunBusy("Controleren op een nieuwe versie…", () => OnUpdate(manualCheck: true));
+        _miAutoUpdate.Click += (_, _) => { Updater.Enabled = !Updater.Enabled; UpdateUpdateMenu(); };
+        _menu.Opening += (_, _) => UpdateUpdateMenu();
+        _btnUpdate.Click += async (_, _) => await RunBusy("Nieuwe versie ophalen…", () => OnUpdate(manualCheck: false));
+        _btnUpdateLater.Click += (_, _) => { _updateBarDismissed = true; ScreenUpdate.Batch(this, () => _updateBar.Visible = false); };
 
         _footerTimer.Tick += (_, _) => { _footerTimer.Stop(); _footerFlash = ""; UpdateFooter(); };
         FormClosing += OnFormClosing;
@@ -948,6 +985,105 @@ internal sealed class MainForm : Form
         });
     }
 
+    // =====================================================================================
+    // Bijwerken (zie Updater)
+    // =====================================================================================
+
+    private void UpdateUpdateMenu()
+    {
+        bool policy = Updater.BlockedByPolicy;
+        _miAutoUpdate.Checked = Updater.Enabled;
+        _miAutoUpdate.Enabled = !policy;
+        _miCheckUpdate.Enabled = !policy;
+        if (policy) _miAutoUpdate.ToolTipText = "Uitgezet door uw systeembeheerder.";
+    }
+
+    /// <summary>Toont de balk als er een nieuwere versie bekend is (en de gebruiker hem niet heeft weggeklikt).</summary>
+    private void ShowUpdateBarIfAvailable()
+    {
+        if (IsDisposed || _updateBarDismissed || !Updater.Enabled || Updater.Available is not Version v) return;
+        ScreenUpdate.Batch(this, () =>
+        {
+            _lblUpdate.Text = $"ⓘ  Er is een nieuwe versie van PraktijkClean: {v.ToString(3)} (u heeft {Program.Version}).";
+            _updateBar.Visible = true;
+        });
+    }
+
+    private async Task CheckForUpdatesInBackground()
+    {
+        ShowUpdateBarIfAvailable();
+        if (!Updater.Enabled || !Updater.CheckDue) return;
+        await Task.Run(Updater.CheckIfDueAsync);
+        ShowUpdateBarIfAvailable();
+    }
+
+    /// <summary>
+    /// Haalt de nieuwste release op, vraagt om bevestiging, downloadt en controleert hem en laat de nieuwe versie
+    /// het bijwerken afmaken. Dit venster sluit dan; PraktijkClean gaat daarna vanzelf weer open.
+    /// </summary>
+    private async Task OnUpdate(bool manualCheck)
+    {
+        if (Updater.BlockedByPolicy) { Info("Controleren op nieuwe versies is uitgezet door uw systeembeheerder."); return; }
+        ReleaseInfo? info;
+        try { info = await Task.Run(() => Updater.FetchLatestAsync()); }
+        catch (Exception ex) when (Updater.IsNetworkError(ex))
+        {
+            Warn("GitHub kon niet worden bereikt. Controleer de internetverbinding en probeer het later opnieuw.\n\n" +
+                 "Nieuwe versies staan ook op " + AppRegistration.WebsiteUrl + "/releases");
+            return;
+        }
+        if (info is null || !UpdateCheck.IsNewer(info.Version, Updater.Current))
+        {
+            ScreenUpdate.Batch(this, () => _updateBar.Visible = false);
+            if (manualCheck) Info($"U heeft de nieuwste versie van PraktijkClean ({Program.Version}).");
+            return;
+        }
+        ShowUpdateBarIfAvailable();
+        if (_dirty)
+        {
+            Warn("Er zijn niet-opgeslagen wijzigingen. Klik eerst op 'Opslaan' (of 'Ongedaan maken') en daarna op 'Bijwerken'.");
+            return;
+        }
+
+        string notes = UpdateCheck.ShortNotes(info.Notes);
+        int choice = ConfirmDialog.Show(this, $"Bijwerken naar versie {info.Version.ToString(3)}?",
+            $"U heeft nu versie {Program.Version}. Uw instellingen, de geplande taak en het logboek blijven behouden. " +
+            "PraktijkClean sluit even en gaat daarna vanzelf weer open." +
+            (notes.Length > 0 ? "\n\nNieuw in deze versie:\n" + notes : ""),
+            ConfirmIcon.Info, defaultIndex: 0, cancelIndex: 2, "Bijwerken", "Op GitHub bekijken", ConfirmDialog.Cancel);
+        if (choice == 1)
+        {
+            try { Process.Start(new ProcessStartInfo(info.PageUrl.Length > 0 ? info.PageUrl : AppRegistration.WebsiteUrl + "/releases") { UseShellExecute = true })?.Dispose(); }
+            catch (System.ComponentModel.Win32Exception) { }
+            return;
+        }
+        if (choice != 0) return;
+
+        string exe;
+        try
+        {
+            var progress = new Progress<int>(p => UpdateFooter($"Nieuwe versie downloaden… {p}%"));
+            exe = await Updater.DownloadAsync(_layout, info, progress);
+        }
+        catch (UpdateException ex) { Warn(ex.Message); return; }
+        catch (Exception ex) when (Updater.IsNetworkError(ex) || ex is UnauthorizedAccessException)
+        {
+            Warn("Downloaden is niet gelukt (" + ex.GetType().Name + "). Er is niets veranderd; probeer het later opnieuw.");
+            return;
+        }
+
+        UpdateFooter("Bijwerken…");
+        try { Updater.StartInstall(exe); }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            Warn("De nieuwe versie kon niet worden gestart (" + ex.Message + "). Er is niets veranderd.");
+            return;
+        }
+        // De nieuwe versie wacht tot dit venster dicht is.
+        _dirty = false;
+        _closeAfterBusy = true;
+    }
+
     private void OnOpenLog()
     {
         if (!File.Exists(_layout.LogPath)) { Info("Er is nog geen logboek. Het logboek wordt aangemaakt bij de eerste controle."); return; }
@@ -1197,6 +1333,8 @@ internal sealed class MainForm : Form
 
     /// <summary>
     /// Eén tabblad per keer, alleen als er niets anders te doen is (Application.Idle), zodat klikken en typen voorgaan.
+    /// Het tabblad blijft verborgen: niet even selecteren, want dan tekenden delen ervan (lijsten, knoppen) soms
+    /// zichtbaar door het huidige tabblad heen.
     /// </summary>
     private void OnIdlePrewarm(object? sender, EventArgs e)
     {
@@ -1208,21 +1346,18 @@ internal sealed class MainForm : Form
         }
         if (_busy) return;
         int index = _prewarmNext++;
-        int selected = _tabs.SelectedIndex;
-        if (index == selected) return;
-        _prewarming = true;
-        ScreenUpdate.StopDrawing(_tabs);
-        try
-        {
-            _tabs.SelectedIndex = index;
-            FitWrapLabels();
-            _tabs.SelectedIndex = selected;
-        }
-        finally
-        {
-            _prewarming = false;
-            ScreenUpdate.ResumeDrawing(_tabs);
-        }
+        if (index == _tabs.SelectedIndex) return;
+        var page = _tabs.TabPages[index];
+        CreateHandles(page);
+        page.PerformLayout();
+        FitWrapLabels(page);
+    }
+
+    /// <summary>Vensters van een verborgen tabblad alvast aanmaken (ze blijven onzichtbaar tot het tabblad opent).</summary>
+    private static void CreateHandles(Control control)
+    {
+        if (!control.IsHandleCreated) _ = control.Handle;
+        foreach (Control child in control.Controls) CreateHandles(child);
     }
 
     /// <summary>"vandaag 14:17", "morgen 12:30" of "17-11 12:30".</summary>
@@ -1659,7 +1794,7 @@ internal sealed class MainForm : Form
 
     private void SetButtonsEnabled(bool enabled)
     {
-        foreach (var b in new[] { _btnSimulate, _btnPrimary, _btnMenu, _btnLog, _btnAddFolder })
+        foreach (var b in new[] { _btnSimulate, _btnPrimary, _btnMenu, _btnLog, _btnAddFolder, _btnUpdate, _btnUpdateLater })
             b.Enabled = enabled;
         _btnRemoveFolder.Enabled = enabled && SelectedFolder?.Type == FolderTypes.Custom;
         UpdateFooter(enabled ? null : _lblFooter.Text);

@@ -157,6 +157,13 @@ verwijdert, verdwijnt namelijk ook uit de cloud en van alle andere apparaten. Al
 waarschuwing kan dit per map worden toegestaan ("Opschonen op deze OneDrive-/netwerklocatie toestaan").
 Overleg dit met uw systeembeheerder.
 
+### Nieuwe versies
+
+Hooguit eens per 20 uur kijkt PraktijkClean op GitHub of er een nieuwe versie is. Zo ja, dan verschijnt bovenin een
+blauwe balk met **Bijwerken…**. Pas na die klik wordt de nieuwe versie gedownload; die wordt alleen geïnstalleerd
+als de digitale handtekening van PraktijkClean klopt. Instellingen, taak en logboek blijven behouden. Uitzetten via
+**☰ Meer → Automatisch controleren op nieuwe versies**. Zie [docs/BIJWERKEN.md](docs/BIJWERKEN.md).
+
 ### Waarom niet "bij afmelden"?
 
 Windows Taakplanner kent geen betrouwbare afmeldtrigger. PraktijkClean gebruikt daarom **dagelijks** (een
@@ -248,7 +255,10 @@ Artifacts**. Voor openbare projecten is dit gratis.
 1. Pas `<Version>` aan in `src/PraktijkClean/PraktijkClean.csproj` en, als het script wijzigt,
    `$script:PcVersion` in `script/cleanup.ps1`.
 2. Voer `build.ps1` uit.
-3. Bestaande installaties krijgen het nieuwe script zodra men in de nieuwe app op **Opslaan** klikt of
+3. De .exe ondertekenen met `tools/sign-release.sh` en een GitHub-release maken met de .exe, het `.sha256`- en
+   het `.sig`-bestand ([docs/BIJWERKEN.md](docs/BIJWERKEN.md)). Installaties vanaf 1.4.0 bieden de nieuwe versie
+   dan zelf aan en werken bij het bijwerken ook het script en de taak bij.
+4. Wie de nieuwe .exe zelf downloadt en opent, krijgt het nieuwe script zodra men op **Opslaan** klikt of
    **☰ Meer → Problemen oplossen → Geplande taak en script opnieuw instellen** kiest (de app meldt een afwijkend
    script vanzelf).
 
@@ -284,7 +294,9 @@ dit), zodat Windows PowerShell 5.1 het altijd goed leest. Gebruik nooit `Invoke-
 ### Bestanden van PraktijkClean
 
 `%LOCALAPPDATA%\PraktijkClean\` (bijv. `C:\Users\<naam>\AppData\Local\PraktijkClean`):
-`cleanup.ps1`, `config.json`, `status.json`, `logs\praktijkclean.log`.
+`PraktijkClean.exe`, `cleanup.ps1`, `config.json`, `status.json`, `logs\praktijkclean.log`,
+`logs\verwijderde-bestanden.log` en tijdelijk `update\` (een download bij het bijwerken). Instellingen voor het
+bijwerken staan in het register onder `HKCU\Software\PraktijkClean`.
 
 ### Uitvoeringsbeleid (Execution Policy)
 
@@ -299,7 +311,7 @@ het script en wordt er niets verwijderd. De app toont dan een foutmelding bij de
 powershell -NoProfile -ExecutionPolicy RemoteSigned -File "$env:LOCALAPPDATA\PraktijkClean\cleanup.ps1" -Mode Simulate -Json
 ```
 
-`-Mode Simulate` verwijdert nooit iets. Exitcodes: 0 = gelukt, 1 = configuratiefout, 2 = fouten,
+`-Mode Simulate` verwijdert nooit iets. Exitcodes: 0 = gelukt, 1 = configuratiefout (of `PraktijkClean.exe` ontbreekt), 2 = fouten,
 3 = limiet overschreden (niets verwijderd), 4 = er draaide al een opschoning.
 
 ### Afmelden via Groepsbeleid (alleen voor systeembeheerders)
@@ -319,14 +331,19 @@ het draait niet bij stroomuitval, slaapstand of hard uitzetten.
 In de app: **☰ Meer → PraktijkClean verwijderen…**, of via **Instellingen > Apps > Geïnstalleerde apps >
 PraktijkClean > Verwijderen**. Een eventueel nog aanwezig gedownload `PraktijkClean-<versie>.exe` kan daarna
 zelf worden weggegooid.
-Lukt dat niet meer (bijv. app kwijt): verwijder in Taakplanner de taak `PraktijkClean - <gebruiker>` en
-daarna de map `%LOCALAPPDATA%\PraktijkClean`.
+Daarbij verdwijnen ook de geplande taak, de instellingen, het logboek en de registerinstellingen.
+
+Is alleen `PraktijkClean.exe` (of de hele map) met de hand weggegooid, dan staat de geplande taak er nog. Uit
+voorzorg verwijdert die dan **niets** meer: het script ziet dat het programma ontbreekt, stopt met de melding
+"programma ontbreekt" en exitcode 1. Ruim de rest op door in Taakplanner de taak `PraktijkClean - <gebruiker>` te
+verwijderen en daarna de map `%LOCALAPPDATA%\PraktijkClean` (als die er nog is).
 
 ### Meer
 
 - [docs/ARCHITECTUUR.md](docs/ARCHITECTUUR.md) — opbouw, rechten, veiligheidslagen
 - [docs/CONFIGURATIE.md](docs/CONFIGURATIE.md) — alle velden van `config.json`
 - [docs/BEPERKINGEN.md](docs/BEPERKINGEN.md) — bekende beperkingen en niet-geteste onderdelen
+- [docs/BIJWERKEN.md](docs/BIJWERKEN.md) — bijwerken met één klik, releasesleutel, uitzetten via beleid
 - [docs/ONDERTEKENING.md](docs/ONDERTEKENING.md) — SmartScreen, Defender en digitale handtekening
 
 ---

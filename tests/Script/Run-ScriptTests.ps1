@@ -494,6 +494,24 @@ try {
         $r = Invoke-Test (New-TestConfig @(New-FolderSpec $d) @{ simulationMode = $false; automaticCleanupConfirmed = $true; paused = $true }) 'Scheduled' $false
         Assert-Exists $a; Assert-Equal 'gepauzeerd' $r.Action 'actie'
     }
+    Test-Case 'Fail-safe: zonder PraktijkClean.exe verwijdert de geplande taak niets' {
+        $d = New-TestDir
+        $a = New-TestFile $d 'a.pdf' 30
+        $cfgPath = New-TestConfig @(New-FolderSpec $d) @{ simulationMode = $false; automaticCleanupConfirmed = $true; deletedFilesListDays = 7 }
+        $r = Invoke-PcCleanup -ConfigPath $cfgPath -Mode 'Scheduled' -ConfirmedByUser $false -IncludeFileNames $false -NowUtc ([DateTime]::UtcNow) -InstallDir $scriptDir -AppMissing $true
+        Assert-Exists $a
+        Assert-Equal 'programma ontbreekt' $r.Action 'actie'
+        Assert-Equal 1 $r.ExitCode 'exitcode'
+        Assert-Equal 0 $r.DeletedCount 'verwijderd'
+        Assert-Equal 7 $r.DeletedListDays 'namenlijst verloopt nog wel'
+    }
+    Test-Case 'Fail-safe geldt niet voor Nu opruimen (dat start de app zelf)' {
+        $d = New-TestDir
+        $a = New-TestFile $d 'a.pdf' 30
+        $cfgPath = New-TestConfig @(New-FolderSpec $d) @{ deleteMode = 'permanent' }
+        $r = Invoke-PcCleanup -ConfigPath $cfgPath -Mode 'CleanNow' -ConfirmedByUser $true -IncludeFileNames $false -NowUtc ([DateTime]::UtcNow) -InstallDir $scriptDir -AppMissing $false
+        Assert-Equal 'opgeschoond' $r.Action 'actie'
+    }
     Test-Case 'Nu opruimen zonder bevestiging wordt geweigerd' {
         $d = New-TestDir
         $a = New-TestFile $d 'a.pdf' 30
@@ -776,6 +794,21 @@ try {
         # Geplande run: nooit bestandsnamen in de JSON.
         $out2 = & $exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath -ConfigPath $cfg -Mode Scheduled -Json -ShowFileNames
         Assert-True ((($out2 -join '')).IndexOf('Patient-Jansen') -lt 0) 'geen namen bij geplande run'
+    }
+    Test-Case 'Fail-safe via apart proces: script zonder PraktijkClean.exe ernaast verwijdert niets' {
+        # Zoals na handmatig weggooien van het programma: taak, script en instellingen staan er nog.
+        $d = New-TestDir
+        $f = New-TestFile $d 'oud.pdf' 30
+        $inst = New-TestDir 'installatie'
+        Copy-Item -LiteralPath $scriptPath -Destination (Join-Path $inst 'cleanup.ps1')
+        $cfg = New-TestConfig @(New-FolderSpec $d) @{ simulationMode = $false; automaticCleanupConfirmed = $true }
+        Copy-Item -LiteralPath $cfg -Destination (Join-Path $inst 'config.json')
+        $exe = (Get-Process -Id $PID).Path
+        $null = & $exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $inst 'cleanup.ps1') -Mode Scheduled
+        Assert-Equal 1 $LASTEXITCODE 'exitcode'
+        Assert-Exists $f
+        $status = [System.IO.File]::ReadAllText((Join-Path $inst 'status.json')) | ConvertFrom-Json
+        Assert-Equal 'programma ontbreekt' $status.action 'actie in status.json'
     }
     Test-Case 'Configuratiefout geeft exitcode 1 via apart proces' {
         $cfg = Write-RawConfig '{ kapot'

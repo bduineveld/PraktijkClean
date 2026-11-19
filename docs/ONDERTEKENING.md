@@ -21,12 +21,15 @@ Belangrijk om te weten (bron: Microsoft-documentatie over SmartScreen-reputatie,
 ## Wat in dit project al is gedaan om onterechte meldingen te beperken
 
 - Geen compressie, versleuteling of "packing" van de .exe (`build.ps1` zet compressie bewust niet aan).
-- Geen code die zichzelf of andere code downloadt; het script is een vaste versie die in de .exe zit.
+- Geen code die ongevraagd iets downloadt; het script is een vaste versie die in de .exe zit. Bijwerken naar een
+  nieuwe versie gebeurt alleen na een klik van de gebruiker, alleen vanaf GitHub via https, en alleen als de
+  download is ondertekend met de releasesleutel van PraktijkClean ([BIJWERKEN.md](BIJWERKEN.md)). Die
+  handtekening staat los van een Authenticode-certificaat: ze bewijst alleen dat de update van de maker komt.
 - Geen `Invoke-Expression`, geen verborgen PowerShell-opdrachten (geen `-EncodedCommand`).
 - Geen omzeiling van beveiliging: de app vraagt geen administratorrechten (`asInvoker`), en de geplande taak
   draait nooit verhoogd. `-ExecutionPolicy Bypass` wordt niet gebruikt in de geplande taak.
 - Versie-informatie (product, omschrijving, versie) in de .exe.
-- Bij elke build een SHA-256-controlegetal (`PraktijkClean.exe.sha256`), zodat ontvangers kunnen controleren
+- Bij elke build een SHA-256-controlegetal (`PraktijkClean-<versie>.exe.sha256`), zodat ontvangers kunnen controleren
   dat het bestand ongewijzigd is.
 - Volledig open broncode en reproduceerbare build via GitHub Actions.
 

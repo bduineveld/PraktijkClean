@@ -60,6 +60,12 @@ Verborgen bestanden, systeembestanden (zoals `desktop.ini`), alleen-lezenbestand
 cloud-placeholders, bestanden die in gebruik zijn, lopende downloads (`.crdownload`, `.part`, `.partial`,
 `.download`, `.opdownload`) en Office-tijdelijke bestanden (`~$…`).
 
+## Instellingen buiten config.json
+
+Bijwerken met één klik gebruikt het register (`HKCU\Software\PraktijkClean`, bijv. `CheckForUpdates` = 0 om niet
+automatisch te controleren) en kan door een beheerder worden uitgezet met
+`HKLM\SOFTWARE\Policies\PraktijkClean\DisableUpdates` = 1. Zie [BIJWERKEN.md](BIJWERKEN.md).
+
 ## Bestandsleeftijd
 
 Leeftijd = nu − de **nieuwste** van aanmaakdatum en wijzigingsdatum. Zie

@@ -1,9 +1,11 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
 using PraktijkClean.Core;
+using PraktijkClean.Core.Windows;
 
 namespace PraktijkClean;
 
@@ -45,6 +47,10 @@ internal static class Program
         }
 
         var layout = InstallLayout.ForCurrentUser();
+
+        // "/update-install": een gedownloade en goedgekeurde nieuwe versie maakt het bijwerken af (zie Updater).
+        if (args.Any(a => string.Equals(a, Updater.InstallArgument, StringComparison.OrdinalIgnoreCase)))
+            return FinishUpdate(layout);
 
         // Slechts één beheervenster tegelijk per gebruiker; een tweede start haalt het open venster naar voren.
         using var mutex = new Mutex(initiallyOwned: true, AppMutexName, out bool isFirst);
@@ -94,8 +100,67 @@ internal static class Program
             return 0;
         }
 
-        Application.Run(new MainForm());
+        bool justUpdated = args.Any(a => string.Equals(a, Updater.UpdatedArgument, StringComparison.OrdinalIgnoreCase));
+        Application.Run(new MainForm(justUpdated));
         return 0;
+    }
+
+    /// <summary>
+    /// Draait vanuit %LOCALAPPDATA%\PraktijkClean\update. Wacht tot de oude app dicht is, zet zichzelf op de plek van
+    /// de geïnstalleerde app, werkt script en geplande taak bij (instellingen blijven) en opent PraktijkClean weer.
+    /// </summary>
+    private static int FinishUpdate(InstallLayout layout)
+    {
+        using var mutex = new Mutex(initiallyOwned: false, AppMutexName);
+        bool owned;
+        try { owned = mutex.WaitOne(TimeSpan.FromSeconds(60)); }
+        catch (AbandonedMutexException) { owned = true; }
+        if (!owned)
+        {
+            MessageBox.Show("PraktijkClean kon niet worden bijgewerkt omdat het venster nog geopend is. Sluit PraktijkClean en probeer het opnieuw.",
+                Texts.AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return 1;
+        }
+
+        string? problem = null;
+        try
+        {
+            // De oude app is net gesloten; Windows laat het bestand soms nog heel even vast.
+            for (int attempt = 1; ; attempt++)
+            {
+                try { AppRegistration.Install(layout); break; }
+                catch (Exception ex) when (attempt < 20 && ex is IOException or UnauthorizedAccessException) { Thread.Sleep(500); }
+            }
+            // Staat er inmiddels een nóg nieuwere versie (Install overschrijft die nooit), dan het script van die versie laten.
+            bool installedIsSelf = AppRegistration.InstalledVersion(layout) is not System.Version installed ||
+                                   installed.CompareTo(AppRegistration.SelfVersion) <= 0;
+            if (installedIsSelf && File.Exists(layout.ConfigPath) && ConfigStore.TryLoad(layout.ConfigPath, out _) is AppConfig config)
+            {
+                var installer = new Installer(layout, new WindowsTaskSchedulerService(), WindowsSystem.CreateTaskEnvironment(), MainForm.ReadEmbeddedScript());
+                installer.SaveAndApply(config);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ScheduledTaskException or InvalidOperationException or System.Security.SecurityException)
+        {
+            problem = ex.GetType().Name;
+        }
+        finally
+        {
+            mutex.ReleaseMutex();
+        }
+
+        if (problem is not null)
+            MessageBox.Show("Bijwerken is niet helemaal gelukt (" + problem + "). Er is niets verwijderd.\n\n" +
+                            "PraktijkClean wordt nu geopend. Gebruik eventueel 'Meer > Problemen oplossen', of download de nieuwe versie zelf van GitHub.",
+                            Texts.AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        try
+        {
+            string exe = File.Exists(layout.AppExePath) ? layout.AppExePath : Application.ExecutablePath;
+            Process.Start(new ProcessStartInfo(exe, problem is null ? Updater.UpdatedArgument : "")
+            { UseShellExecute = false, WorkingDirectory = layout.BaseDirectory })?.Dispose();
+        }
+        catch (System.ComponentModel.Win32Exception) { }
+        return problem is null ? 0 : 1;
     }
 
     private static void ShowUnexpected(Exception? ex)

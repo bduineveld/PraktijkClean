@@ -24,6 +24,7 @@ internal static class AppUninstall
         var installer = new Installer(layout, new WindowsTaskSchedulerService(), WindowsSystem.CreateTaskEnvironment(), MainForm.ReadEmbeddedScript());
         var r = installer.Uninstall();
         AppRegistration.Unregister();
+        Updater.RemoveSettings();
 
         // De draaiende exe kan zichzelf niet verwijderen; dat gebeurt een paar seconden na het sluiten.
         string exeName = Path.GetFileName(layout.AppExePath);

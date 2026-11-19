@@ -23,7 +23,10 @@ internal static class ScreenUpdate
         if (control.IsHandleCreated) SendMessage(control.Handle, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
     }
 
-    /// <summary>Tekenen weer aanzetten en alles in één keer opnieuw tekenen.</summary>
+    /// <summary>
+    /// Tekenen weer aanzetten en alles in één keer opnieuw tekenen. Alleen voor iets dat zichtbaar is: WM_SETREDRAW
+    /// maakt een verborgen venster (zoals een ander tabblad) zichtbaar.
+    /// </summary>
     public static void ResumeDrawing(Control control)
     {
         if (!control.IsHandleCreated) return;
@@ -41,14 +44,16 @@ internal static class ScreenUpdate
         _depth++;
         var containers = new List<Control>();
         Collect(root, containers);
-        StopDrawing(root);
+        // Iets verborgens (een ander tabblad) tekent toch niet; WM_SETREDRAW zou het juist zichtbaar maken.
+        bool redraw = root.Visible;
+        if (redraw) StopDrawing(root);
         foreach (var c in containers) c.SuspendLayout();
         try { action(); }
         finally
         {
             for (int i = containers.Count - 1; i >= 0; i--) containers[i].ResumeLayout(true);
             _depth--;
-            ResumeDrawing(root);
+            if (redraw) ResumeDrawing(root);
         }
     }
 

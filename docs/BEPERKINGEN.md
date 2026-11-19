@@ -1,5 +1,27 @@
 # Bekende beperkingen en nog niet geteste onderdelen
 
+## Getest op Windows 11 (versie 1.4.0)
+
+Getest op dezelfde Windows 11-computer (ARM64, build 26300, schermschaal 200 %):
+
+- `build.ps1` volledig: 62 scripttests en 56 C#-tests geslaagd; `PraktijkClean-1.4.0.exe` (528 kB) is gebouwd.
+- Bijwerken met één klik, met een tijdelijke testversie 1.4.1 die met de echte releasesleutel is ondertekend en via
+  `UpdateSource` vanaf een eigen testadres werd aangeboden (het echte GitHub-adres is alleen in de tests gebruikt):
+  blauwe balk na het openen, vraagvenster met de releasetekst, download met voortgang onderin, controle van de
+  handtekening, app sluit en gaat als 1.4.1 weer open met de melding "Bijgewerkt", icoon herstart, script bijgewerkt
+  naar 1.4.1, pauze en instellingen behouden, updatemap opgeruimd. Ook 1.3.0 → 1.4.0 via `/update-install`.
+- Geweigerd (en niet geïnstalleerd): een download waarin één byte is veranderd (melding "De handtekening van de
+  download klopt niet") en een geldig ondertekende oudere versie die als nieuwere werd aangeboden ("niet de
+  verwachte versie").
+- Fail-safe: met `PraktijkClean.exe` tijdelijk hernoemd verwijderde het geïnstalleerde script als geplande taak
+  niets (exitcode 1, "programma ontbreekt" in logboek en status); met de exe terug werd hetzelfde testbestand wel
+  opgeruimd. Getest met een kopie van de instellingen en een eigen testmap.
+- Tabbladen worden nu op de achtergrond voorbereid zonder ze even te selecteren; daardoor tekenen na het
+  vergroten of verkleinen van het venster geen stukjes van een ander tabblad meer door het huidige heen.
+- **Niet** getest: bijwerken vanaf de echte GitHub-release (kan pas bij de eerstvolgende release na 1.4.0); de
+  melding en het menu-item van het systeemvak-icoon (alleen de code); groepsbeleid `DisableUpdates` (alleen de
+  code); bijwerken achter een proxyserver.
+
 ## Getest op Windows 11 (versie 1.3.0)
 
 Getest op een tweede Windows 11-computer (ARM64, build 26300, schermschaal 200 %):
