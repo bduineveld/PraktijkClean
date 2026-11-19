@@ -52,6 +52,9 @@ public sealed class RunReport
     [DataMember(Name = "skipped")] public int Skipped { get; set; }
     [DataMember(Name = "tooYoung")] public int TooYoung { get; set; }
     [DataMember(Name = "errors")] public int Errors { get; set; }
+    /// <summary>Lege submappen die worden (of zijn) weggehaald (niveau Zwaar); tellen niet mee in Candidates/Deleted.</summary>
+    [DataMember(Name = "emptyFolders")] public int EmptyFolders { get; set; }
+    [DataMember(Name = "emptyFoldersDeleted")] public int EmptyFoldersDeleted { get; set; }
     [DataMember(Name = "messages")] public List<string> Messages { get; set; } = null!;
     [DataMember(Name = "folders")] public List<FolderReport> Folders { get; set; } = null!;
     [DataMember(Name = "fileDetails")] public List<FolderFileDetails>? FileDetails { get; set; }
@@ -80,6 +83,7 @@ public sealed class RunReport
         {
             d.Candidates ??= new List<FileEntry>();
             d.Skipped ??= new List<FileEntry>();
+            d.EmptyFolders ??= new List<FileEntry>();
         }
         return report;
     }
@@ -126,6 +130,8 @@ public sealed class FolderReport
     [DataMember(Name = "skipped")] public int Skipped { get; set; }
     [DataMember(Name = "skippedByReason")] public Dictionary<string, int> SkippedByReason { get; set; } = null!;
     [DataMember(Name = "errors")] public int Errors { get; set; }
+    [DataMember(Name = "emptyFolders")] public int EmptyFolders { get; set; }
+    [DataMember(Name = "emptyFoldersDeleted")] public int EmptyFoldersDeleted { get; set; }
 }
 
 [DataContract]
@@ -166,11 +172,14 @@ public sealed class FolderFileDetails
         Id = "";
         Candidates = new List<FileEntry>();
         Skipped = new List<FileEntry>();
+        EmptyFolders = new List<FileEntry>();
     }
 
     [DataMember(Name = "id")] public string Id { get; set; } = "";
     [DataMember(Name = "candidates")] public List<FileEntry> Candidates { get; set; } = null!;
     [DataMember(Name = "skipped")] public List<FileEntry> Skipped { get; set; } = null!;
+    /// <summary>Submappen (relatief pad) die na het opruimen leeg zijn en worden weggehaald.</summary>
+    [DataMember(Name = "emptyFolders")] public List<FileEntry> EmptyFolders { get; set; } = null!;
 }
 
 [DataContract]

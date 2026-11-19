@@ -100,7 +100,8 @@ internal sealed class MainForm : Form
     private readonly ComboBox _cmbRetention = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 210 };
     private readonly NumberBox _numDays = new() { Minimum = 0, Maximum = 3650, Width = 70 };
     private FlowLayoutPanel _daysRow = null!;
-    private readonly CheckBox _chkRecurse = new() { Text = "Ook submappen doorzoeken (afgeraden)", AutoSize = true };
+    private readonly ComboBox _cmbSubfolders = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 330 };
+    private readonly Label _lblSubfolderHint = new() { AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(3, 0, 3, 6) };
     private readonly CheckBox _chkAllowSync = new() { Text = "Opruimen op deze OneDrive-/netwerklocatie toestaan (afgeraden)", AutoSize = true };
     private readonly ListView _lstExclusions = new()
     {
@@ -122,6 +123,7 @@ internal sealed class MainForm : Form
     private readonly NumberBox _numBinDays = new() { Minimum = 0, Maximum = 3650, Width = 60 };
     private readonly LinkLabel _lnkBinInfo = new() { Text = "Uitleg", AutoSize = true, Margin = new Padding(6, 7, 3, 3) };
     private readonly NumberBox _numMaxFiles = new() { Minimum = 1, Maximum = 5000, Width = 80 };
+    private readonly ComboBox _cmbDefaultLevel = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 330 };
     private readonly LinkLabel _lnkDestroy = new() { Text = "Verwijderen is niet hetzelfde als veilig vernietigen – lees meer", AutoSize = true };
 
     // ---------------------------------------------------------------- Tabblad Logboek
@@ -250,6 +252,7 @@ internal sealed class MainForm : Form
         MinimumSize = new Size(780, 580);
         if (AppIcons.App is { } appIcon) Icon = appIcon;
         foreach (var o in RetentionOptions.All) _cmbRetention.Items.Add(o);
+        foreach (var o in SubfolderLevels.All) { _cmbSubfolders.Items.Add(o); _cmbDefaultLevel.Items.Add(o); }
 
         // ---- Kop: status links, hoofdknop en menu rechts
         _lblState.Font = new Font("Segoe UI Semibold", 13F, FontStyle.Bold);
@@ -296,6 +299,9 @@ internal sealed class MainForm : Form
 
         // ---- Tabblad Mappen: lijst links, instellingen van de gekozen map rechts
         var folderLeft = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = new Padding(0, 0, 10, 0) };
+        // Kolom vast op de breedte van het paneel; anders wordt de lijst breder dan zichtbaar en valt de rechterrand
+        // (met het weglatingsteken van lange regels) onder de instellingen rechts.
+        folderLeft.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         folderLeft.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         folderLeft.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         folderLeft.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -311,7 +317,8 @@ internal sealed class MainForm : Form
         _daysRow = Row(_numDays, Caption("dagen"));
         AddRow(details, Row(Caption("Opruimen als een bestand:"), _cmbRetention, _daysRow));
         AddRow(details, Hint("Leeftijd = tijd sinds het bestand is aangemaakt of gewijzigd (de nieuwste datum telt). Een net gedownload bestand is dus altijd 'nieuw'."));
-        AddRow(details, _chkRecurse);
+        AddRow(details, Row(Caption("Submappen:"), _cmbSubfolders));
+        AddRow(details, Wrap(_lblSubfolderHint));
         AddRow(details, _chkAllowSync);
         AddRow(details, Heading("Nooit verwijderen (uitzonderingen)"));
         AddRow(details, _lstExclusions);
@@ -348,7 +355,10 @@ internal sealed class MainForm : Form
         AddRow(plan, Row(_chkEmptyBin, _numBinDays, Caption("dag(en) in staan"), _lnkBinInfo));
         AddRow(plan, Heading("Veiligheid"));
         AddRow(plan, Row(Caption("Nooit meer dan"), _numMaxFiles, Caption("bestanden per keer")));
-        AddRow(plan, Hint("Komen er meer bestanden in aanmerking, dan wordt er uit voorzorg niets verwijderd (bijvoorbeeld bij een verkeerd gekozen map)."));
+        AddRow(plan, Hint("Komen er meer bestanden (of lege mappen) in aanmerking, dan wordt er uit voorzorg niets verwijderd (bijvoorbeeld bij een verkeerd gekozen map)."));
+        AddRow(plan, Row(Caption("Submappen bij een nieuwe map:"), _cmbDefaultLevel));
+        AddRow(plan, Hint("Geldt voor mappen die u hierna toevoegt; per map is het daarna nog te wijzigen op het tabblad Mappen. " +
+                          "Licht = submappen overslaan, Midden = ook bestanden in submappen, Zwaar = daarna ook lege submappen weghalen."));
         AddRow(plan, _lnkDestroy);
         AddRow(plan, Hint("Wijzigingen op dit tabblad en bij Mappen worden pas actief als u op 'Opslaan' klikt.", top: 14));
 
@@ -584,7 +594,8 @@ internal sealed class MainForm : Form
         _chkEnabled.CheckedChanged += (_, _) => EditFolder(f => f.Enabled = _chkEnabled.Checked);
         _cmbRetention.SelectedIndexChanged += (_, _) => OnRetentionChoice();
         _numDays.ValueChanged += (_, _) => EditFolder(f => f.RetentionDays = (int)_numDays.Value);
-        _chkRecurse.CheckedChanged += (_, _) => OnRecurseChanged();
+        _cmbSubfolders.SelectedIndexChanged += (_, _) => OnSubfolderLevelChanged();
+        _cmbDefaultLevel.SelectedIndexChanged += (_, _) => { if (!_loadingUi) MarkDirty(); };
         _chkAllowSync.CheckedChanged += (_, _) => OnAllowSyncChanged();
         _lstExclusions.SelectedIndexChanged += (_, _) => UpdateExclusionButtons();
         _lstExclusions.KeyDown += (_, e) => { if (e.KeyCode == Keys.Delete) OnRemoveExclusions(); };
@@ -664,7 +675,8 @@ internal sealed class MainForm : Form
         if (!f.Enabled) return "Wordt niet opgeruimd";
         string age = f.RetentionDays == 0 ? "Direct opruimen" : f.RetentionDays == 1 ? "Ouder dan 1 dag" : $"Ouder dan {f.RetentionDays} dagen";
         int ex = Exclusions.All(f).Count;
-        return age + (f.Recurse ? " · met submappen" : "") + (ex > 0 ? $" · {ex} uitzondering{(ex == 1 ? "" : "en")}" : "");
+        string sub = SubfolderLevels.ShortText(f);
+        return age + (sub.Length > 0 ? " · " + sub : "") + (ex > 0 ? $" · {ex} uitzondering{(ex == 1 ? "" : "en")}" : "");
     }
 
     // =====================================================================================
@@ -691,6 +703,7 @@ internal sealed class MainForm : Form
             _numBinDays.Value = Math.Min(Math.Max(_config.RecycleBinRetentionDays, 0), 3650);
             _numBinDays.Enabled = _chkEmptyBin.Checked;
             _cmbListDays.SelectedIndex = DeletedFilesList.OptionIndexFor(_config.DeletedFilesListDays);
+            _cmbDefaultLevel.SelectedIndex = SubfolderLevels.IndexOf(_config.DefaultSubfolderLevel);
             UpdateDeleteNote();
         }
         finally { _loadingUi = false; }
@@ -709,6 +722,7 @@ internal sealed class MainForm : Form
         _config.EmptyRecycleBin = _chkEmptyBin.Checked;
         _config.RecycleBinRetentionDays = (int)_numBinDays.Value;
         if (_cmbListDays.SelectedIndex >= 0) _config.DeletedFilesListDays = DeletedFilesList.Options[_cmbListDays.SelectedIndex].Days;
+        if (_cmbDefaultLevel.SelectedIndex >= 0) _config.DefaultSubfolderLevel = SubfolderLevels.All[_cmbDefaultLevel.SelectedIndex].Level;
     }
 
     private FolderSettings? SelectedFolder => _lstFolders.SelectedItem as FolderSettings;
@@ -719,11 +733,11 @@ internal sealed class MainForm : Form
         _loadingUi = true;
         try
         {
-            foreach (var c in new Control[] { _chkEnabled, _cmbRetention, _numDays, _chkRecurse, _chkAllowSync, _lstExclusions, _btnExclAdd })
+            foreach (var c in new Control[] { _chkEnabled, _cmbRetention, _numDays, _cmbSubfolders, _chkAllowSync, _lstExclusions, _btnExclAdd })
                 c.Enabled = f is not null;
             FillExclusions(f);
             _btnRemoveFolder.Enabled = f is not null && f.Type == FolderTypes.Custom;
-            if (f is null) { _lblFolderName.Text = "Geen map gekozen"; _lblPath.Text = ""; _lblFolderWarning.Text = ""; return; }
+            if (f is null) { _lblFolderName.Text = "Geen map gekozen"; _lblPath.Text = ""; _lblFolderWarning.Text = ""; _lblSubfolderHint.Text = ""; return; }
 
             _chkEnabled.Checked = f.Enabled;
             _lblFolderName.Text = f.DisplayName;
@@ -731,7 +745,8 @@ internal sealed class MainForm : Form
             _cmbRetention.SelectedIndex = RetentionOptions.IndexFor(f.RetentionDays);
             _numDays.Value = Math.Min(Math.Max(f.RetentionDays, 0), 3650);
             _daysRow.Visible = RetentionOptions.All[_cmbRetention.SelectedIndex].Days is null;
-            _chkRecurse.Checked = f.Recurse;
+            _cmbSubfolders.SelectedIndex = SubfolderLevels.IndexOf(SubfolderLevels.Of(f));
+            _lblSubfolderHint.Text = SubfolderLevels.All[_cmbSubfolders.SelectedIndex].Description;
             _chkAllowSync.Checked = f.AllowNetworkOrSync;
 
             var check = CheckPath(f.ExpectedPath);
@@ -780,15 +795,29 @@ internal sealed class MainForm : Form
         else EditFolder(f => f.RetentionDays = (int)_numDays.Value);
     }
 
-    private void OnRecurseChanged()
+    private void OnSubfolderLevelChanged()
     {
-        if (_loadingUi) return;
-        if (_chkRecurse.Checked && !Confirm("Ook submappen doorzoeken?", Texts.RecurseWarning, "Submappen doorzoeken", ConfirmIcon.Warning))
+        if (_loadingUi || SelectedFolder is not FolderSettings f || _cmbSubfolders.SelectedIndex < 0) return;
+        string from = SubfolderLevels.Of(f);
+        var to = SubfolderLevels.All[_cmbSubfolders.SelectedIndex];
+        if (to.Level == from) return;
+        // Zwaarder maken vraagt om bevestiging; lichter maken niet (dan wordt er alleen minder opgeruimd).
+        bool heavier = SubfolderLevels.IndexOf(to.Level) > SubfolderLevels.IndexOf(from);
+        if (heavier)
         {
-            _loadingUi = true; _chkRecurse.Checked = false; _loadingUi = false;
-            return;
+            bool ok = to.Level == SubfolderLevels.Heavy
+                ? Confirm("Ook lege submappen weghalen?", Texts.SubfolderHeavyWarning, "Lege submappen weghalen", ConfirmIcon.Warning)
+                : Confirm("Ook bestanden in submappen opruimen?", Texts.SubfolderMediumWarning, "Submappen doorzoeken", ConfirmIcon.Warning);
+            if (!ok)
+            {
+                _loadingUi = true;
+                try { _cmbSubfolders.SelectedIndex = SubfolderLevels.IndexOf(from); }
+                finally { _loadingUi = false; }
+                return;
+            }
         }
-        EditFolder(f => f.Recurse = _chkRecurse.Checked);
+        _lblSubfolderHint.Text = to.Description;
+        EditFolder(x => SubfolderLevels.Apply(x, to.Level));
     }
 
     private void OnAllowSyncChanged()
@@ -1182,7 +1211,7 @@ internal sealed class MainForm : Form
     private void OnDeletedDoubleClick()
     {
         if (_lstDeleted.SelectedItems.Count == 0 || _lstDeleted.SelectedItems[0].Tag is not DeletedFilesList.Entry e) return;
-        if (e.Kind == DeletedFilesList.KindRecycleBin)
+        if (e.InRecycleBin)
             Process.Start(new ProcessStartInfo("explorer.exe", "shell:RecycleBinFolder") { UseShellExecute = false })?.Dispose();
         else if (Directory.Exists(e.Directory))
             Process.Start(new ProcessStartInfo("explorer.exe", "\"" + e.Directory + "\"") { UseShellExecute = false })?.Dispose();
@@ -1281,7 +1310,8 @@ internal sealed class MainForm : Form
         {
             _lblLastRun.Text = $"{lr.ToLocalTime():dd-MM-yyyy HH:mm} ({TriggerText(last.Trigger)}, {last.Action}).";
             _lblLastResult.Text = $"{last.Deleted} verwijderd ({Format.Bytes(last.DeletedBytes)}), {last.Candidates} in aanmerking, " +
-                                  $"{last.Skipped} overgeslagen, {last.TooYoung} te recent, {last.Errors} fout(en).";
+                                  $"{last.Skipped} overgeslagen, {last.TooYoung} te recent, {last.Errors} fout(en)." +
+                                  (last.EmptyFolders > 0 ? $"\nLege submappen: {last.EmptyFoldersDeleted} weggehaald, {last.EmptyFolders} in aanmerking." : "");
             problems.AddRange(last.Messages.Where(m => last.Errors > 0 || last.ExitCode != 0));
             problems.AddRange(last.Folders.Where(f => f.Status is "Geblokkeerd" or "Fout").Select(f => $"{NameOf(f.Id)}: {f.Message}"));
             if (last.RecycleBin is { } lb)
@@ -1529,9 +1559,14 @@ internal sealed class MainForm : Form
                          "Toch toevoegen", ConfirmIcon.Warning)) return;
         }
         string extra = check.Warnings.Count > 0 ? "\n\nLet op:\n• " + string.Join("\n• ", check.Warnings) : "";
-        if (!Confirm("Deze map toevoegen?", string.Format(Texts.AddFolderConfirm, path, extra), "Map toevoegen")) return;
+        string level = SubfolderLevels.IsValid(_config.DefaultSubfolderLevel) ? _config.DefaultSubfolderLevel : SubfolderLevels.Light;
+        if (_cmbDefaultLevel.SelectedIndex >= 0) level = SubfolderLevels.All[_cmbDefaultLevel.SelectedIndex].Level;
+        string levelText = "Submappen: " + SubfolderLevels.All[SubfolderLevels.IndexOf(level)].Label + ". " +
+                           SubfolderLevels.All[SubfolderLevels.IndexOf(level)].Description + " (Te wijzigen na het toevoegen.)";
+        if (!Confirm("Deze map toevoegen?", string.Format(Texts.AddFolderConfirm, path, extra, levelText), "Map toevoegen")) return;
 
-        var folder = ConfigStore.CreateCustomFolder(ConfigStore.NextCustomId(_config), path);
+        if (_cmbDefaultLevel.SelectedIndex >= 0) _config.DefaultSubfolderLevel = SubfolderLevels.All[_cmbDefaultLevel.SelectedIndex].Level;
+        var folder = ConfigStore.CreateCustomFolder(ConfigStore.NextCustomId(_config), path, _config.DefaultSubfolderLevel);
         _config.Folders.Add(folder);
         _lstFolders.Items.Add(folder);
         _lstFolders.SelectedItem = folder;
@@ -1612,7 +1647,8 @@ internal sealed class MainForm : Form
             var report = await _runner.SimulateAsync();
             if (!CheckReport(report)) return;
             var sb = new StringBuilder();
-            sb.AppendLine($"Bij de huidige instellingen komen nu {report.Candidates} bestand(en) ({Format.Bytes(report.CandidateBytes)}) in aanmerking voor verwijdering.");
+            sb.AppendLine($"Bij de huidige instellingen komen nu {report.Candidates} bestand(en) ({Format.Bytes(report.CandidateBytes)}) in aanmerking voor verwijdering." +
+                          (report.EmptyFolders > 0 ? $" Daarna worden {report.EmptyFolders} lege submap(pen) weggehaald." : ""));
             foreach (var f in report.Folders.Where(f => f.Status is "Geblokkeerd" or "Fout"))
                 sb.AppendLine($"• {NameOf(f.Id)}: {f.Message}");
             sb.AppendLine();
@@ -1621,7 +1657,7 @@ internal sealed class MainForm : Form
                           ": " + MomentText() + ".");
             if (report.RecycleBin is { } bin)
                 sb.AppendLine(BinText() + $" Nu komen daarvoor {bin.Candidates} item(s) ({Format.Bytes(bin.CandidateBytes)}) in aanmerking.");
-            if (report.Candidates > _config.MaxFilesPerRun)
+            if (report.Candidates + report.EmptyFolders > _config.MaxFilesPerRun)
                 sb.AppendLine().AppendLine($"Let op: dat is meer dan het maximum van {_config.MaxFilesPerRun} per keer. Zolang dat zo is, wordt er uit voorzorg niets verwijderd.");
             sb.AppendLine().Append("U kunt later altijd pauzeren of terug naar simulatiemodus.");
             int choice = AskWithSimulation("Automatisch opruimen activeren?", sb.ToString(), "Activeren");
@@ -1655,14 +1691,14 @@ internal sealed class MainForm : Form
             var preview = await _runner.SimulateAsync();
             if (!CheckReport(preview)) return;
             int binCount = preview.RecycleBin?.Candidates ?? 0;
-            if (preview.Candidates == 0 && binCount == 0)
+            if (preview.Candidates == 0 && binCount == 0 && preview.EmptyFolders == 0)
             {
                 Info("Er zijn op dit moment geen bestanden die in aanmerking komen. Er is niets verwijderd.");
                 return;
             }
-            if (preview.Candidates > _config.MaxFilesPerRun)
+            if (preview.Candidates + preview.EmptyFolders > _config.MaxFilesPerRun)
             {
-                Warn($"Er komen {preview.Candidates} bestanden in aanmerking; dat is meer dan het maximum van {_config.MaxFilesPerRun} per keer. " +
+                Warn($"Er komen {preview.Candidates} bestanden" + (preview.EmptyFolders > 0 ? $" en {preview.EmptyFolders} lege mappen" : "") + " in aanmerking; dat is meer dan het maximum van {_config.MaxFilesPerRun} per keer. " +
                      "Uit voorzorg wordt er niets verwijderd. Controleer de simulatie en verhoog zo nodig het maximum.");
                 return;
             }
@@ -1673,7 +1709,8 @@ internal sealed class MainForm : Form
                 ? $"\n\nDaarnaast worden {pb.Candidates} item(s) ({Format.Bytes(pb.CandidateBytes)}) DEFINITIEF uit de Prullenbak verwijderd."
                 : "";
             int choice = AskWithSimulation("Nu opruimen?",
-                $"Er worden nu {preview.Candidates} bestand(en) ({Format.Bytes(preview.CandidateBytes)}) {where}" + binLine, "Nu opruimen");
+                $"Er worden nu {preview.Candidates} bestand(en) ({Format.Bytes(preview.CandidateBytes)}) {where}" +
+                (preview.EmptyFolders > 0 ? $"\n\nDaarna worden {preview.EmptyFolders} submap(pen) die dan leeg zijn weggehaald." : "") + binLine, "Nu opruimen");
             if (choice == ChoiceSimulate) { ShowSimulation(preview); continue; }
             if (choice != ChoiceGo) return;
             break;
@@ -1683,6 +1720,7 @@ internal sealed class MainForm : Form
         if (!CheckReport(result)) return;
         var sb = new StringBuilder();
         sb.AppendLine($"{result.Deleted} bestand(en) verwijderd ({Format.Bytes(result.DeletedBytes)}).");
+        if (result.EmptyFolders > 0) sb.AppendLine($"{result.EmptyFoldersDeleted} lege submap(pen) weggehaald.");
         if (result.RecycleBin is { } rb)
             sb.AppendLine($"Prullenbak: {rb.Deleted} item(s) verwijderd ({Format.Bytes(rb.DeletedBytes)}).");
         sb.AppendLine($"{result.Skipped} overgeslagen, {result.Errors} fout(en).");

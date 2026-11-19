@@ -34,6 +34,7 @@ public sealed class AppConfig
         EmptyRecycleBin = false;
         RecycleBinRetentionDays = 7;
         DeletedFilesListDays = 7;
+        DefaultSubfolderLevel = SubfolderLevels.Light;
         Schedule = new ScheduleSettings();
         Folders = new List<FolderSettings>();
     }
@@ -85,6 +86,13 @@ public sealed class AppConfig
 
     [DataMember(Name = "folders", Order = 12)]
     public List<FolderSettings> Folders { get; set; } = null!;
+
+    /// <summary>
+    /// Niveau voor submappen bij een nieuw toegevoegde map: "light", "medium" of "heavy" (zie <see cref="SubfolderLevels"/>).
+    /// Alleen voor de app; het script gebruikt per map Recurse en RemoveEmptyFolders.
+    /// </summary>
+    [DataMember(Name = "defaultSubfolderLevel", Order = 13)]
+    public string DefaultSubfolderLevel { get; set; } = "";
 }
 
 public static class DeleteModes
@@ -150,6 +158,7 @@ public sealed class FolderSettings
         ExpectedPath = "";
         RetentionDays = 7;
         Recurse = false;
+        RemoveEmptyFolders = false;
         AllowNetworkOrSync = false;
         Exclusions = new ExclusionSettings();
     }
@@ -192,11 +201,18 @@ public sealed class FolderSettings
     [DataMember(Name = "recurse", Order = 9)]
     public bool Recurse { get; set; }
 
+    /// <summary>
+    /// Submappen die na het opruimen leeg zijn ook weghalen (niveau "Zwaar"). Alleen samen met <see cref="Recurse"/>.
+    /// Een map met inhoud wordt nooit verwijderd. Ontbreekt in een oudere config.json = uit.
+    /// </summary>
+    [DataMember(Name = "removeEmptyFolders", Order = 10)]
+    public bool RemoveEmptyFolders { get; set; }
+
     /// <summary>Opschonen op OneDrive-/cloud- of netwerklocatie toestaan. Standaard uit.</summary>
-    [DataMember(Name = "allowNetworkOrSync", Order = 10)]
+    [DataMember(Name = "allowNetworkOrSync", Order = 11)]
     public bool AllowNetworkOrSync { get; set; }
 
-    [DataMember(Name = "exclusions", Order = 11)]
+    [DataMember(Name = "exclusions", Order = 12)]
     public ExclusionSettings Exclusions { get; set; } = null!;
 }
 

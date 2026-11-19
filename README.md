@@ -53,7 +53,8 @@ gedownloade bestand is daarna niet meer nodig. Een nieuwere versie installeert u
 
 1. **Controleer de mappen** (tabblad *Mappen*). Bureaublad en Downloads staan klaar met "ouder dan 1 dag": wat
    langer dan een dag op het bureaublad of in Downloads staat, gaat naar de Prullenbak, en wat daarna nog een dag
-   in de Prullenbak staat, wordt definitief verwijderd. Klik een map aan voor de bewaartermijn en uitzonderingen.
+   in de Prullenbak staat, wordt definitief verwijderd. Klik een map aan voor de bewaartermijn, wat er met
+   submappen gebeurt (zie hieronder) en uitzonderingen.
 2. **Kies het moment** (tabblad *Planning en veiligheid*): dagelijks op een tijdstip en/of bij aanmelden.
 3. Klik rechtsonder op **Opslaan**. Het script en de geplande taak worden geïnstalleerd, in simulatiemodus.
    Er wordt niets verwijderd.
@@ -112,12 +113,31 @@ maakt u de lijst meteen leeg (de bestanden zelf veranderen daardoor niet). De li
 `%LOCALAPPDATA%\PraktijkClean\logs\verwijderde-bestanden.log` en wordt bij het verwijderen van PraktijkClean ook
 verwijderd.
 
+### Submappen: Licht, Midden of Zwaar
+
+Per map kiest u op het tabblad *Mappen* bij **Submappen**:
+
+- **Licht – submappen overslaan** (standaard): alleen bestanden direct in de map. Submappen en alles daarin
+  blijven staan. Handig voor gebruikers: zet wat moet blijven in een submap, bijvoorbeeld `Bureaublad\Bewaren`.
+- **Midden – ook bestanden in submappen**: ook oude bestanden in submappen worden opgeruimd; de submappen zelf
+  blijven altijd staan.
+- **Zwaar – ook lege submappen weghalen**: als Midden, en submappen die daarna leeg zijn (of al leeg waren) worden
+  weggehaald, als ze ouder zijn dan de bewaartermijn. Een submap waar nog iets in staat (een nieuwer, verborgen of
+  uitgesloten bestand) blijft altijd staan.
+
+Naar een zwaarder niveau gaan vraagt eerst om bevestiging. Let bij Zwaar op vaste mappen die leeg mogen zijn,
+zoals een map waar de scanner naartoe schrijft: zet die als submap bij *Nooit verwijderen*, of klik in het
+simulatievenster met de rechtermuisknop op de lege submap en kies "altijd laten staan".
+
+Op het tabblad *Planning en veiligheid* stelt u bij **Submappen bij een nieuwe map** in welk niveau een map krijgt
+die u daarna toevoegt (standaard Licht). Bestaande mappen veranderen daardoor niet.
+
 ### Uitzonderingen
 
 Per map staat op het tabblad *Mappen* een lijst **Nooit verwijderen (uitzonderingen)**. Met **Toevoegen ▾** kiest u:
 
 - **Bestand(en) uit deze map kiezen…**
-- **Submap kiezen…**: een submap overslaan (alleen van belang als "Ook submappen doorzoeken" aan staat).
+- **Submap kiezen…**: een submap overslaan en nooit weghalen (alleen van belang bij Midden of Zwaar).
 - **Extensie, naam of patroon typen…**: een extensie (`.docx`), een bestandsnaam (`Bewaren.pdf`) of een patroon
   met `*` (willekeurige tekst) of `?` (één teken), bijvoorbeeld `protocol-*`.
 
@@ -130,12 +150,12 @@ met de rechtermuisknop op een bestand klikken (zie hierboven).
   wijzigingsdatum, dus een net gedownload bestand is altijd "nieuw". Bovendien nooit iets jonger dan 15 minuten.
 - Snelkoppelingen (`.lnk`, `.url`), verborgen en systeembestanden, alleen-lezenbestanden, geopende bestanden,
   lopende downloads en tijdelijke Office-bestanden.
-- **Mappen.** Submappen worden standaard niet eens bekeken. Tip voor gebruikers: zet wat moet blijven in een
-  submap, bijvoorbeeld `Bureaublad\Bewaren`.
+- **Mappen.** Submappen worden standaard niet eens bekeken (Licht). Alleen bij Zwaar worden lege submappen
+  weggehaald; een map waar nog iets in staat nooit, en de ingestelde map zelf ook nooit.
 - Alles op **OneDrive/cloud- of netwerklocaties** (standaard geblokkeerd, zie hieronder).
 - Alles in systeemmappen, Program Files, AppData en dergelijke.
-- Als er meer bestanden in aanmerking komen dan het ingestelde maximum (standaard 200): dan wordt er in die
-  ronde helemaal niets verwijderd.
+- Als er meer bestanden (en lege submappen) in aanmerking komen dan het ingestelde maximum (standaard 200): dan
+  wordt er in die ronde helemaal niets verwijderd.
 
 ### De Prullenbak en definitief verwijderen
 

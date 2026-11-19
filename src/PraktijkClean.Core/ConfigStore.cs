@@ -49,16 +49,22 @@ public static class ConfigStore
         Exclusions = DefaultExclusions(),
     };
 
-    public static FolderSettings CreateCustomFolder(string id, string path) => new()
+    /// <summary>Een zelf gekozen map, met het standaardniveau voor submappen uit de instellingen.</summary>
+    public static FolderSettings CreateCustomFolder(string id, string path, string subfolderLevel = SubfolderLevels.Light)
     {
-        Id = id,
-        DisplayName = System.IO.Path.GetFileName(path.TrimEnd('\\', '/')) is { Length: > 0 } name ? name : path,
-        Type = FolderTypes.Custom,
-        Path = path,
-        ExpectedPath = path,
-        RetentionDays = 30,
-        Exclusions = DefaultExclusions(),
-    };
+        var f = new FolderSettings
+        {
+            Id = id,
+            DisplayName = System.IO.Path.GetFileName(path.TrimEnd('\\', '/')) is { Length: > 0 } name ? name : path,
+            Type = FolderTypes.Custom,
+            Path = path,
+            ExpectedPath = path,
+            RetentionDays = 30,
+            Exclusions = DefaultExclusions(),
+        };
+        SubfolderLevels.Apply(f, SubfolderLevels.IsValid(subfolderLevel) ? subfolderLevel : SubfolderLevels.Light);
+        return f;
+    }
 
     /// <summary>Snelkoppelingen (.lnk) en internetkoppelingen (.url) blijven standaard behouden.</summary>
     public static ExclusionSettings DefaultExclusions() => new() { Extensions = { ".lnk", ".url" } };

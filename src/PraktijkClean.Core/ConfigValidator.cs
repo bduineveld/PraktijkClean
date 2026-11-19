@@ -32,6 +32,8 @@ public static class ConfigValidator
             errors.Add("De minimale leeftijd moet tussen 1 en 1440 minuten liggen.");
         if (config.DeleteMode != DeleteModes.RecycleBin && config.DeleteMode != DeleteModes.Permanent)
             errors.Add("Kies of bestanden naar de Prullenbak gaan of definitief worden verwijderd.");
+        if (!SubfolderLevels.IsValid(config.DefaultSubfolderLevel))
+            errors.Add("Kies een standaardniveau voor submappen (Licht, Midden of Zwaar).");
         if (config.RecycleBinRetentionDays is < 0 or > 3650)
             errors.Add("De termijn voor het legen van de Prullenbak moet tussen 0 en 3650 dagen liggen.");
         if (config.DeletedFilesListDays is < 0 or > DeletedFilesList.MaxDays)
@@ -78,6 +80,8 @@ public static class ConfigValidator
                 errors.Add($"{label}: de locatie van de map kon niet worden bepaald.");
             if (f.RetentionDays is < 0 or > 3650)
                 errors.Add($"{label}: de bewaartermijn moet tussen 0 en 3650 dagen liggen.");
+            if (f.RemoveEmptyFolders && !f.Recurse)
+                errors.Add($"{label}: lege submappen weghalen kan alleen als submappen ook worden doorzocht.");
 
             var ex = f.Exclusions;
             if (ex is null)

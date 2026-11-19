@@ -37,15 +37,22 @@ internal static class Texts
     public const string AllowSyncConfirm =
         "\n\nSta dit alleen toe als u de gevolgen begrijpt en dit heeft afgestemd met uw systeembeheerder.";
 
-    public const string RecurseWarning =
-        "Met deze optie worden ook bestanden in alle submappen gecontroleerd en eventueel verwijderd. " +
+    public const string SubfolderMediumWarning =
+        "Dan worden ook bestanden in alle submappen gecontroleerd en na de bewaartermijn opgeruimd. " +
         "De submappen zelf blijven altijd bestaan.\n\n" +
         "Dit vergroot het risico dat u onbedoeld bestanden kwijtraakt. Gebruik daarna eerst 'Simulatie bekijken'.";
+
+    public const string SubfolderHeavyWarning =
+        "Dan worden ook bestanden in alle submappen opgeruimd, en submappen die daarna leeg zijn worden weggehaald " +
+        "(ook submappen die al leeg waren), als ze ouder zijn dan de bewaartermijn.\n\n" +
+        "Een submap waar nog iets in staat (een nieuwer, verborgen of uitgesloten bestand) blijft altijd staan.\n\n" +
+        "Let op vaste mappen die leeg mogen zijn, zoals een map waar de scanner naartoe schrijft: zet die bij " +
+        "'Nooit verwijderen' als submap. Gebruik daarna eerst 'Simulatie bekijken'.";
 
     public const string AddFolderConfirm =
         "{0}\n\n" +
         "Bestanden in deze map die ouder zijn dan de ingestelde bewaartermijn (standaard 30 dagen) komen in " +
-        "aanmerking voor verwijdering zodra automatische opschoning actief is. Submappen worden niet doorzocht.\n\n" +
+        "aanmerking voor verwijdering zodra automatische opschoning actief is.\n\n{2}\n\n" +
         "Controleer altijd eerst met 'Simulatie bekijken'.{1}";
 
     public const string DeleteVersusDestroy =

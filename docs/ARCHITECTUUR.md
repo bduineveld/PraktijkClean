@@ -40,6 +40,7 @@ src/PraktijkClean.Core/          Logica zonder venster: configuratie, validatie,
    ScriptRunner.cs               Script starten vanuit de app (simulatie / nu opruimen)
    PathRules.cs                  Controle van gekozen mappen in de app
    Exclusions.cs                 Uitzonderingen per map toevoegen/verwijderen (zelfde regels als het script)
+   SubfolderLevels.cs            Submappen per map: Licht, Midden of Zwaar (recurse / removeEmptyFolders)
    LogSummary.cs                 Telt uit het logboek wat er in de afgelopen dagen is opgeruimd
    DeletedFilesList.cs           Lijst verwijderde bestanden lezen, inkorten en wissen
    UpdateCheck.cs                Nieuwe versie op GitHub herkennen en de releasehandtekening controleren
@@ -168,7 +169,10 @@ datums. Zie [BEPERKINGEN.md](BEPERKINGEN.md).
 6. **Bestanden**: overgeslagen als ze verborgen, systeem of alleen-lezen zijn, een koppeling/cloud-placeholder
    zijn, een lopende download zijn (`.crdownload`, `.part`, …), een Office-tijdelijk bestand (`~$…`), of
    in gebruik zijn (exclusief openen mislukt). Vlak vóór het verwijderen wordt alles opnieuw gecontroleerd.
-7. **Nooit mappen verwijderen**. Submappen worden standaard niet eens doorzocht.
+7. **Mappen alleen als ze leeg zijn**. Submappen worden standaard niet eens doorzocht (niveau Licht). Alleen bij
+   niveau Zwaar (`removeEmptyFolders`) worden submappen weggehaald, en dan alleen als ze na het opruimen helemaal
+   leeg zijn, ouder zijn dan de bewaartermijn, niet uitgesloten zijn en geen koppeling, verborgen, systeem- of
+   alleen-lezenmap zijn; vlak ervoor wordt dat opnieuw gecontroleerd. De ingestelde map zelf wordt nooit verwijderd.
 8. **Limiet**: komen er meer bestanden in aanmerking dan het maximum (standaard 200), dan wordt er in die
    uitvoering **helemaal niets** verwijderd en wordt een fout gemeld.
 9. **Bevestiging**: automatische verwijdering gebeurt alleen als `simulationMode` uit staat **én**

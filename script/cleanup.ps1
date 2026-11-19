@@ -444,6 +444,15 @@ function Test-PcConfig {
             $recurse = Get-PcProp $f 'recurse'
             if ($recurse -isnot [bool]) { $errors.Add("${label}: recurse moet true of false zijn.") }
 
+            # Lege submappen weghalen (niveau 'Zwaar'): optioneel, ontbreekt = uit. Alleen samen met recurse.
+            $removeEmpty = $false
+            if (Test-PcHasProp $f 'removeEmptyFolders') {
+                $v = Get-PcProp $f 'removeEmptyFolders'
+                if ($v -isnot [bool]) { $errors.Add("${label}: removeEmptyFolders moet true of false zijn.") }
+                elseif ($v -and $recurse -ne $true) { $errors.Add("${label}: removeEmptyFolders kan alleen samen met recurse.") }
+                else { $removeEmpty = $v }
+            }
+
             $allow = Get-PcProp $f 'allowNetworkOrSync'
             if ($allow -isnot [bool]) { $errors.Add("${label}: allowNetworkOrSync moet true of false zijn.") }
 
@@ -466,6 +475,7 @@ function Test-PcConfig {
                 ExpectedPath       = $expected
                 RetentionDays      = $days
                 Recurse            = $recurse
+                RemoveEmptyFolders = $removeEmpty
                 AllowNetworkOrSync = $allow
                 ExcludeFiles       = $exFiles
                 ExcludeSubfolders  = $exDirs
@@ -595,20 +605,41 @@ function Test-PcSubfolderExcluded {
     return $false
 }
 
+function Test-PcFolderNameExcluded {
+    # Een submap die (met naam of relatief pad) als bestand of patroon is uitgesloten, wordt nooit weggehaald.
+    param([string]$Name, [string]$RelativePath, $Folder)
+    foreach ($f in $Folder.ExcludeFiles) {
+        if ([string]::Equals($RelativePath, $f, $script:PcIgnoreCase) -or [string]::Equals($Name, $f, $script:PcIgnoreCase)) { return $true }
+    }
+    foreach ($p in $Folder.ExcludePatterns) {
+        $wp = New-Object System.Management.Automation.WildcardPattern($p, [System.Management.Automation.WildcardOptions]::IgnoreCase)
+        if ($wp.IsMatch($Name)) { return $true }
+    }
+    return $false
+}
+
 function Get-PcFolderScan {
     <#
       Doorloopt een map (en alleen bij Recurse ook submappen, zonder reparse points te volgen)
       en deelt bestanden in: kandidaat, te jong of overgeslagen. Verwijdert niets.
+      Bij RemoveEmptyFolders ook de submappen die na het opruimen leeg zijn: niets erin blijft staan
+      (geen te recent, overgeslagen of verborgen bestand, geen overgeslagen submap) en de map zelf is
+      ouder dan de bewaartermijn. Een map met inhoud wordt nooit weggehaald; de geselecteerde map zelf ook niet.
     #>
     param($Folder, [string]$RootPath, [datetime]$NowUtc, [int]$MinimumAgeMinutes)
     $scan = [pscustomobject]@{
         Candidates      = New-Object System.Collections.Generic.List[object]
         Skipped         = New-Object System.Collections.Generic.List[object]
+        EmptyFolders    = New-Object System.Collections.Generic.List[object]
         TooYoungCount   = 0
         SkippedByReason = @{}
         ErrorCount      = 0
         Truncated       = $false
     }
+    $trackDirs = [bool]$Folder.Recurse -and [bool]$Folder.RemoveEmptyFolders
+    # Per doorzochte map: blijft er iets in staan (Blocked), welke submappen, en hoe oud is de map zelf.
+    $nodes = @{}
+    $nodes[''] = [pscustomobject]@{ FullPath = $RootPath; RelativePath = ''; Depth = 0; Blocked = $true; Children = (New-Object System.Collections.Generic.List[object]); OldEnough = $false; Removable = $false }
     $stack = New-Object System.Collections.Generic.Stack[object]
     $stack.Push(@($RootPath, ''))
     $seen = 0
@@ -616,12 +647,14 @@ function Get-PcFolderScan {
         $entry = $stack.Pop()
         $dirPath = $entry[0]
         $relDir = $entry[1]
+        $node = $nodes[$relDir]
         $items = $null
         try {
             $di = New-Object System.IO.DirectoryInfo($dirPath)
             $items = $di.GetFileSystemInfos()
         } catch {
             $scan.ErrorCount++
+            if ($null -ne $node) { $node.Blocked = $true }
             continue
         }
         foreach ($item in ($items | Sort-Object -Property Name)) {
@@ -630,11 +663,21 @@ function Get-PcFolderScan {
             if ($relDir -eq '') { $rel = $item.Name } else { $rel = $relDir + $script:PcSep + $item.Name }
 
             if ($item -is [System.IO.DirectoryInfo]) {
-                # Mappen worden nooit verwijderd. Alleen doorzoeken als recursie aanstaat.
+                # Alleen doorzoeken als recursie aanstaat. Een map met inhoud wordt nooit verwijderd.
                 if (-not $Folder.Recurse) { continue }
-                if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { continue }
-                if (($item.Attributes -band [System.IO.FileAttributes]::Hidden) -ne 0 -or ($item.Attributes -band [System.IO.FileAttributes]::System) -ne 0) { continue }
-                if (Test-PcSubfolderExcluded $rel $Folder) { continue }
+                $a = $item.Attributes
+                $skipDir = (($a -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) -or
+                           (($a -band [System.IO.FileAttributes]::Hidden) -ne 0) -or (($a -band [System.IO.FileAttributes]::System) -ne 0) -or
+                           (Test-PcSubfolderExcluded $rel $Folder)
+                if ($skipDir) { if ($null -ne $node) { $node.Blocked = $true }; continue }
+                if ($trackDirs -and $null -ne $node) {
+                    # Een alleen-lezen map of een uitgesloten mapnaam: inhoud wel opruimen, de map zelf laten staan.
+                    $keepDir = (($a -band [System.IO.FileAttributes]::ReadOnly) -ne 0) -or (Test-PcFolderNameExcluded $item.Name $rel $Folder)
+                    $old = Test-PcIsOldEnough -ReferenceUtc (Get-PcFileReferenceTimeUtc $item) -NowUtc $NowUtc -RetentionDays $Folder.RetentionDays -MinimumAgeMinutes $MinimumAgeMinutes
+                    $child = [pscustomobject]@{ FullPath = $item.FullName; RelativePath = $rel; Depth = $node.Depth + 1; Blocked = $keepDir; Children = (New-Object System.Collections.Generic.List[object]); OldEnough = $old; Removable = $false }
+                    $node.Children.Add($child)
+                    $nodes[$rel] = $child
+                }
                 $stack.Push(@($item.FullName, $rel))
                 continue
             }
@@ -644,15 +687,28 @@ function Get-PcFolderScan {
                 $refTime = Get-PcFileReferenceTimeUtc $item
                 if (-not (Test-PcIsOldEnough -ReferenceUtc $refTime -NowUtc $NowUtc -RetentionDays $Folder.RetentionDays -MinimumAgeMinutes $MinimumAgeMinutes)) {
                     $scan.TooYoungCount++
+                    if ($null -ne $node) { $node.Blocked = $true }
                     continue
                 }
                 $scan.Candidates.Add([pscustomobject]@{ FullPath = $item.FullName; RelativePath = $rel; Size = [long]$item.Length })
             } else {
+                if ($null -ne $node) { $node.Blocked = $true }
                 $scan.Skipped.Add([pscustomobject]@{ RelativePath = $rel; Reason = $reason })
                 if ($scan.SkippedByReason.ContainsKey($reason)) { $scan.SkippedByReason[$reason]++ } else { $scan.SkippedByReason[$reason] = 1 }
             }
         }
         if ($scan.Truncated) { break }
+    }
+
+    # Welke submappen zijn na het opruimen leeg? Diepste eerst, zodat een map pas meetelt als al zijn submappen weg kunnen.
+    if ($trackDirs -and -not $scan.Truncated) {
+        $ordered = @($nodes.Values | Where-Object { $_.RelativePath -ne '' } | Sort-Object -Property @{ Expression = 'Depth'; Descending = $true }, @{ Expression = 'RelativePath'; Descending = $false })
+        foreach ($n in $ordered) {
+            $ok = (-not $n.Blocked) -and $n.OldEnough
+            if ($ok) { foreach ($c in $n.Children) { if (-not $c.Removable) { $ok = $false; break } } }
+            $n.Removable = $ok
+            if ($ok) { $scan.EmptyFolders.Add([pscustomobject]@{ FullPath = $n.FullPath; RelativePath = $n.RelativePath }) }
+        }
     }
     return $scan
 }
@@ -708,6 +764,49 @@ function Remove-PcFile {
         return ''
     } catch {
         # Bewust alleen het type fout; foutteksten kunnen paden bevatten.
+        return 'Fout: ' + $_.Exception.GetType().Name
+    }
+}
+
+function Remove-PcEmptyFolder {
+    <#
+      Haalt een lege submap weg (niveau 'Zwaar'). Retourneert '' bij succes, anders een reden.
+      Hercontrole vlak voor verwijderen: binnen de map (nooit de map zelf), geen koppeling onderweg,
+      niet verborgen/systeem/alleen-lezen, niet uitgesloten en ECHT leeg. Directory.Delete zonder
+      recursie weigert bovendien zelf een map met inhoud.
+    #>
+    param([string]$FullPath, [string]$RootPath, $Folder, [string]$DeleteMode)
+    try {
+        if (-not (Test-PcPathInside $FullPath $RootPath) -or (Test-PcPathEquals $FullPath $RootPath)) { return 'Buiten geselecteerde map' }
+        $di = New-Object System.IO.DirectoryInfo($FullPath)
+        $di.Refresh()
+        if (-not $di.Exists) { return 'Bestaat niet meer' }
+        $p = $di
+        while ($null -ne $p -and -not (Test-PcPathEquals $p.FullName $RootPath)) {
+            if (($p.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { return 'Koppeling of cloudbestand' }
+            $p = $p.Parent
+        }
+        if ($null -eq $p) { return 'Buiten geselecteerde map' }
+        $a = $di.Attributes
+        if (($a -band [System.IO.FileAttributes]::Hidden) -ne 0 -or ($a -band [System.IO.FileAttributes]::System) -ne 0) { return 'Verborgen of systeemmap' }
+        if (($a -band [System.IO.FileAttributes]::ReadOnly) -ne 0) { return 'Alleen-lezen' }
+        $rel = $FullPath.Substring((ConvertTo-PcNormalPath $RootPath).Length).TrimStart('\', '/')
+        if ((Test-PcSubfolderExcluded $rel $Folder) -or (Test-PcFolderNameExcluded $di.Name $rel $Folder)) { return 'Uitzondering: submap' }
+        if ($di.GetFileSystemInfos().Length -ne 0) { return 'Map niet leeg' }
+
+        if ($DeleteMode -eq 'recycleBin') {
+            Add-Type -AssemblyName Microsoft.VisualBasic
+            [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory(
+                $FullPath,
+                [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs,
+                [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin,
+                [Microsoft.VisualBasic.FileIO.UICancelOption]::ThrowException)
+        } else {
+            [System.IO.Directory]::Delete($FullPath, $false)
+        }
+        if ([System.IO.Directory]::Exists($FullPath)) { return 'Verwijderen mislukt' }
+        return ''
+    } catch {
         return 'Fout: ' + $_.Exception.GetType().Name
     }
 }
@@ -880,6 +979,9 @@ function Invoke-PcCleanup {
         SkippedCount    = 0
         TooYoungCount   = 0
         ErrorCount      = 0
+        # Lege submappen (niveau 'Zwaar'); apart geteld, zodat de aantallen bestanden in het logboek gelijk blijven.
+        EmptyFolderCount   = 0
+        EmptyFolderDeleted = 0
         Folders         = New-Object System.Collections.Generic.List[object]
         RecycleBin      = $null
         # Voor de lijst verwijderde bestanden (komt nooit in status.json of het logboek).
@@ -945,8 +1047,11 @@ function Invoke-PcCleanup {
             SkippedCount    = 0
             SkippedByReason = @{}
             ErrorCount      = 0
+            EmptyFolderCount   = 0
+            EmptyFolderDeleted = 0
             Candidates      = @()
             Skipped         = @()
+            EmptyFolders    = @()
         }
         $result.Folders.Add($fr)
         if (-not $folder.Enabled) { $fr.Status = 'Uitgeschakeld'; continue }
@@ -969,6 +1074,7 @@ function Invoke-PcCleanup {
         $scan = Get-PcFolderScan -Folder $folder -RootPath $safety.FullPath -NowUtc $NowUtc -MinimumAgeMinutes $cfg.MinimumAgeMinutes
         $fr.CandidateCount = $scan.Candidates.Count
         foreach ($c in $scan.Candidates) { $fr.CandidateBytes += $c.Size }
+        $fr.EmptyFolderCount = $scan.EmptyFolders.Count
         $fr.TooYoungCount = $scan.TooYoungCount
         $fr.SkippedCount = $scan.Skipped.Count
         $fr.SkippedByReason = $scan.SkippedByReason
@@ -978,6 +1084,7 @@ function Invoke-PcCleanup {
         if ($IncludeFileNames) {
             $fr.Candidates = @($scan.Candidates | ForEach-Object { [pscustomobject]@{ Name = $_.RelativePath; Size = $_.Size } })
             $fr.Skipped = @($scan.Skipped | ForEach-Object { [pscustomobject]@{ Name = $_.RelativePath; Reason = $_.Reason } })
+            $fr.EmptyFolders = @($scan.EmptyFolders | Sort-Object -Property RelativePath | ForEach-Object { [pscustomobject]@{ Name = $_.RelativePath; Size = 0 } })
         }
         $work.Add([pscustomobject]@{ Folder = $folder; Root = $safety.FullPath; Scan = $scan; Report = $fr })
     }
@@ -988,6 +1095,7 @@ function Invoke-PcCleanup {
         $result.TooYoungCount += $fr.TooYoungCount
         $result.SkippedCount += $fr.SkippedCount
         $result.ErrorCount += $fr.ErrorCount
+        $result.EmptyFolderCount += $fr.EmptyFolderCount
     }
 
     # Prullenbak: alleen bekijken als de optie aan staat. Totalen hierboven gaan alleen over de mappen.
@@ -1019,11 +1127,15 @@ function Invoke-PcCleanup {
     }
 
     if ($doDelete) {
-        if ($result.CandidateCount -gt $cfg.MaxFilesPerRun) {
+        # Lege mappen tellen mee voor de limiet.
+        $total = $result.CandidateCount + $result.EmptyFolderCount
+        if ($total -gt $cfg.MaxFilesPerRun) {
             $result.ExitCode = 3
             $result.Action = 'limiet overschreden'
             $result.ErrorCount++
-            $result.Messages.Add("Er komen $($result.CandidateCount) bestanden in aanmerking, meer dan de ingestelde limiet van $($cfg.MaxFilesPerRun). Uit voorzorg is er NIETS verwijderd. Controleer dit met een simulatie.")
+            $what = "$($result.CandidateCount) bestanden"
+            if ($result.EmptyFolderCount -gt 0) { $what += " en $($result.EmptyFolderCount) lege mappen" }
+            $result.Messages.Add("Er komen $what in aanmerking, meer dan de ingestelde limiet van $($cfg.MaxFilesPerRun). Uit voorzorg is er NIETS verwijderd. Controleer dit met een simulatie.")
             return $result
         }
         foreach ($w in $work) {
@@ -1042,8 +1154,23 @@ function Invoke-PcCleanup {
                     if ($why.StartsWith('Fout') -or $why -eq 'Verwijderen mislukt') { $w.Report.ErrorCount++; $result.ErrorCount++ }
                 }
             }
+            # Daarna de lege submappen, diepste eerst. Blijft er toch iets in staan (bijv. een bestand dat in gebruik
+            # was), dan blijft de map gewoon staan; dat is geen fout.
+            foreach ($d in $w.Scan.EmptyFolders) {
+                $why = Remove-PcEmptyFolder -FullPath $d.FullPath -RootPath $w.Root -Folder $w.Folder -DeleteMode $cfg.DeleteMode
+                if ($why -eq '') {
+                    $w.Report.EmptyFolderDeleted++
+                    $kind = 'map-definitief'
+                    if ($cfg.DeleteMode -eq 'recycleBin') { $kind = 'map-prullenbak' }
+                    $result.DeletedList.Add([pscustomobject]@{ Kind = $kind; Size = 0; FolderId = $w.Folder.Id; Path = $d.FullPath })
+                } elseif ($why.StartsWith('Fout') -or $why -eq 'Verwijderen mislukt') {
+                    $w.Report.ErrorCount++; $result.ErrorCount++
+                    if ($w.Report.SkippedByReason.ContainsKey('Lege map: ' + $why)) { $w.Report.SkippedByReason['Lege map: ' + $why]++ } else { $w.Report.SkippedByReason['Lege map: ' + $why] = 1 }
+                }
+            }
             $result.DeletedCount += $w.Report.DeletedCount
             $result.DeletedBytes += $w.Report.DeletedBytes
+            $result.EmptyFolderDeleted += $w.Report.EmptyFolderDeleted
         }
         if ($null -ne $binScan) {
             $bin = $result.RecycleBin
@@ -1153,6 +1280,7 @@ function Get-PcStatusObject {
             candidates = $f.CandidateCount; candidateBytes = $f.CandidateBytes
             deleted = $f.DeletedCount; deletedBytes = $f.DeletedBytes
             tooYoung = $f.TooYoungCount; skipped = $f.SkippedCount; skippedByReason = $reasons; errors = $f.ErrorCount
+            emptyFolders = $f.EmptyFolderCount; emptyFoldersDeleted = $f.EmptyFolderDeleted
         }
     }
     $recycleBin = $null
@@ -1178,6 +1306,8 @@ function Get-PcStatusObject {
         skipped = $Result.SkippedCount
         tooYoung = $Result.TooYoungCount
         errors = $Result.ErrorCount
+        emptyFolders = $Result.EmptyFolderCount
+        emptyFoldersDeleted = $Result.EmptyFolderDeleted
         messages = @($Result.Messages)
         folders = $folders
         recycleBin = $recycleBin
@@ -1240,6 +1370,7 @@ function Invoke-PcMain {
         $mb = [math]::Round($result.CandidateBytes / 1MB, 1).ToString([System.Globalization.CultureInfo]::InvariantCulture)
         $delMb = [math]::Round($result.DeletedBytes / 1MB, 1).ToString([System.Globalization.CultureInfo]::InvariantCulture)
         $line = "[$Trigger] $($result.Action): $($result.CandidateCount) in aanmerking ($mb MB), $($result.DeletedCount) verwijderd ($delMb MB), $($result.SkippedCount) overgeslagen, $($result.TooYoungCount) te recent, $($result.ErrorCount) fouten."
+        if ($result.EmptyFolderCount -gt 0) { $line += " | Lege mappen: $($result.EmptyFolderCount) in aanmerking, $($result.EmptyFolderDeleted) verwijderd." }
         foreach ($m in $result.Messages) { $line += " | $m" }
         foreach ($f in $result.Folders) { if ($f.Message -ne '') { $line += " | map '$($f.Id)': $($f.Message)" } }
         if ($null -ne $result.RecycleBin) {
@@ -1260,7 +1391,7 @@ function Invoke-PcMain {
             if ($includeNames) {
                 $names = @()
                 foreach ($f in $result.Folders) {
-                    $names += [pscustomobject]@{ id = $f.Id; candidates = $f.Candidates; skipped = $f.Skipped }
+                    $names += [pscustomobject]@{ id = $f.Id; candidates = $f.Candidates; skipped = $f.Skipped; emptyFolders = $f.EmptyFolders }
                 }
                 $out | Add-Member -NotePropertyName fileDetails -NotePropertyValue $names
                 if ($null -ne $result.RecycleBin) {

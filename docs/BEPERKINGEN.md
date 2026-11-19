@@ -4,7 +4,15 @@
 
 Getest op dezelfde Windows 11-computer (ARM64, build 26300, schermschaal 200 %):
 
-- `build.ps1` volledig: 62 scripttests en 56 C#-tests geslaagd; `PraktijkClean-1.4.0.exe` (528 kB) is gebouwd.
+- `build.ps1` volledig: 72 scripttests en 62 C#-tests geslaagd; `PraktijkClean-1.4.0.exe` (548 kB) is gebouwd.
+- Submappen Licht/Midden/Zwaar met een eigen testmap (geneste lege mappen, een te nieuwe lege map, een map met een
+  nieuw bestand, een map met een oud bestand): keuzelijst per map met bevestiging (Annuleren zet de keuze terug),
+  standaardniveau op *Planning en veiligheid*, simulatie toont de lege submappen die weg zouden gaan, rechtermuisknop
+  → "altijd laten staan" slaat de submap op als uitzondering. Echte opruiming (definitief, met een kopie van de
+  instellingen): precies de verwachte drie lege mappen weg, uitgesloten, te nieuwe en niet-lege mappen bleven staan;
+  logboek en lijst verwijderde bestanden kloppen. **Niet** in de app getest: *Map toevoegen…* met standaardniveau
+  Zwaar (het Windows-mapvenster; de logica zit in de C#-tests) en lege mappen naar de Prullenbak (zelfde aanroep als
+  voor bestanden, maar niet getest om de echte Prullenbak niet te raken; alleen definitief verwijderen is getest).
 - Bijwerken met één klik, met een tijdelijke testversie 1.4.1 die met de echte releasesleutel is ondertekend en via
   `UpdateSource` vanaf een eigen testadres werd aangeboden (het echte GitHub-adres is alleen in de tests gebruikt):
   blauwe balk na het openen, vraagvenster met de releasetekst, download met voortgang onderin, controle van de
@@ -113,7 +121,7 @@ Nog **niet** getest:
 - **Verplaatste bestanden houden hun oude datums.** Sleept iemand een oud document vanuit Documenten naar het
   bureaublad (verplaatsen op dezelfde schijf, niet kopiëren), dan kan het bij de volgende controle al in
   aanmerking komen. Openen en opslaan maakt het weer "nieuw"; alleen bekijken niet. Advies aan gebruikers:
-  bestanden die moeten blijven in een **submap** zetten (submappen worden standaard niet opgeschoond) of een
+  bestanden die moeten blijven in een **submap** zetten (bij niveau Licht, de standaard, worden submappen niet opgeschoond) of een
   uitzondering instellen.
 - **Limiet is alles-of-niets.** Komen er meer bestanden in aanmerking dan het maximum, dan wordt er niets
   verwijderd. Bij een grote achterstand de eerste keer: simulatie bekijken en het maximum tijdelijk verhogen

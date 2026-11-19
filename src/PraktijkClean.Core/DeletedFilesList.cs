@@ -20,19 +20,27 @@ public static class DeletedFilesList
     public const string KindRecycleBin = "prullenbak";
     public const string KindPermanent = "definitief";
     public const string KindBinEmptied = "prullenbak-geleegd";
+    public const string KindFolderRecycleBin = "map-prullenbak";
+    public const string KindFolderPermanent = "map-definitief";
 
     private const string TimeFormat = "yyyy-MM-ddTHH:mm:ssZ";
 
     public sealed record Entry(DateTime DeletedUtc, string Kind, long Size, string FolderId, string FullPath)
     {
-        public string FileName => Path.GetFileName(FullPath);
-        public string Directory => Path.GetDirectoryName(FullPath) ?? "";
+        /// <summary>Een lege submap die is weggehaald (niveau Zwaar).</summary>
+        public bool IsFolder => Kind is KindFolderRecycleBin or KindFolderPermanent;
+        /// <summary>Naam; bij een map met een \ erachter, zodat duidelijk is dat het een map was.</summary>
+        public string FileName => Path.GetFileName(FullPath.TrimEnd('\\', '/')) + (IsFolder ? "\\" : "");
+        public string Directory => Path.GetDirectoryName(FullPath.TrimEnd('\\', '/')) ?? "";
+        public bool InRecycleBin => Kind is KindRecycleBin or KindFolderRecycleBin;
 
         public string KindText => Kind switch
         {
             KindRecycleBin => "Naar de Prullenbak",
             KindPermanent => "Definitief verwijderd",
             KindBinEmptied => "Prullenbak geleegd",
+            KindFolderRecycleBin => "Lege map naar de Prullenbak",
+            KindFolderPermanent => "Lege map verwijderd",
             _ => Kind,
         };
     }

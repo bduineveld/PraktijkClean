@@ -14,8 +14,8 @@ namespace PraktijkClean;
 /// </summary>
 internal sealed class SimulationResultForm : Form
 {
-    /// <summary>Een bestand dat in aanmerking komt: map en pad binnen die map.</summary>
-    private sealed record Candidate(string FolderId, string RelativePath);
+    /// <summary>Een bestand (of lege submap) dat in aanmerking komt: map en pad binnen die map.</summary>
+    private sealed record Candidate(string FolderId, string RelativePath, bool IsFolder = false);
 
     /// <summary>
     /// Voegt uitzonderingen toe en slaat de instellingen op. Geeft null bij succes, anders een foutmelding.
@@ -54,7 +54,8 @@ internal sealed class SimulationResultForm : Form
             Text =
                 $"In aanmerking voor verwijdering: {report.Candidates} bestand(en), samen {Format.Bytes(report.CandidateBytes)}.\n" +
                 $"Overgeslagen: {report.Skipped}. Nog te recent: {report.TooYoung}. Fouten: {report.Errors}.\n" +
-                (report.Candidates > config.MaxFilesPerRun
+                (report.EmptyFolders > 0 ? $"Daarna leeg en weggehaald: {report.EmptyFolders} submap(pen).\n" : "") +
+                (report.Candidates + report.EmptyFolders > config.MaxFilesPerRun
                     ? $"Let op: dit is meer dan het maximum van {config.MaxFilesPerRun} per keer; bij echt opruimen wordt dan uit voorzorg niets verwijderd.\n"
                     : "") +
                 (report.RecycleBin is { } bin
@@ -124,6 +125,9 @@ internal sealed class SimulationResultForm : Form
             foreach (var c in details.Candidates)
                 _list.Items.Add(new ListViewItem(new[] { name, c.Name, Format.Bytes(c.Size), "Komt in aanmerking voor verwijdering" })
                     { Tag = new Candidate(folder.Id, c.Name) });
+            foreach (var d in details.EmptyFolders)
+                _list.Items.Add(new ListViewItem(new[] { name, d.Name + "\\", "", "Lege submap: wordt weggehaald" })
+                    { Tag = new Candidate(folder.Id, d.Name, IsFolder: true) });
             foreach (var s in details.Skipped)
                 _list.Items.Add(new ListViewItem(new[] { name, s.Name, "", "Overgeslagen: " + s.Reason }) { ForeColor = SystemColors.GrayText });
             if (folder.TooYoung > 0)
@@ -152,10 +156,27 @@ internal sealed class SimulationResultForm : Form
     private void BuildMenu()
     {
         _menu.Items.Clear();
-        var selected = SelectedCandidates();
-        if (selected.Count == 0)
+        var all = SelectedCandidates();
+        var dirs = all.Where(c => c.IsFolder).ToList();
+        var selected = all.Where(c => !c.IsFolder).ToList();
+        if (all.Count == 0)
         {
             _menu.Items.Add(new ToolStripMenuItem("Kies eerst een of meer bestanden die in aanmerking komen") { Enabled = false });
+            return;
+        }
+        // Lege submap: als submap uitsluiten (blijft dan staan; wat erin komt wordt ook niet meer opgeruimd).
+        if (dirs.Count == 1 && selected.Count == 0)
+        {
+            var d = dirs[0];
+            _menu.Items.Add($"Submap '{Short(d.RelativePath)}' altijd laten staan", null, (_, _) =>
+                Exclude(new[] { (d.FolderId, new ExclusionItem(ExclusionKind.Subfolder, d.RelativePath)) },
+                    c => c.FolderId == d.FolderId && (string.Equals(c.RelativePath, d.RelativePath, StringComparison.OrdinalIgnoreCase) ||
+                                                      c.RelativePath.StartsWith(d.RelativePath + "\\", StringComparison.OrdinalIgnoreCase))));
+            return;
+        }
+        if (selected.Count == 0)
+        {
+            _menu.Items.Add(new ToolStripMenuItem("Kies één lege submap, of alleen bestanden") { Enabled = false });
             return;
         }
 
@@ -184,7 +205,8 @@ internal sealed class SimulationResultForm : Form
         {
             _menu.Items.Add($"Submap '{Short(parent)}' in '{folderName}' overslaan", null, (_, _) =>
                 Exclude(new[] { (folderId, new ExclusionItem(ExclusionKind.Subfolder, parent)) },
-                    c => c.FolderId == folderId && c.RelativePath.StartsWith(parent + "\\", StringComparison.OrdinalIgnoreCase)));
+                    c => c.FolderId == folderId && (c.RelativePath.StartsWith(parent + "\\", StringComparison.OrdinalIgnoreCase) ||
+                                                    string.Equals(c.RelativePath, parent, StringComparison.OrdinalIgnoreCase))));
         }
     }
 
@@ -211,7 +233,7 @@ internal sealed class SimulationResultForm : Form
             count++;
         }
         _btnExclude.Enabled = SelectedCandidates().Count > 0;
-        _lblSaved.Text = $"Uitzondering opgeslagen: {count} bestand(en) worden voortaan overgeslagen.";
+        _lblSaved.Text = $"Uitzondering opgeslagen: {count} regel(s) worden voortaan overgeslagen.";
     }
 
     private static string Short(string s) => s.Length <= 50 ? s : s.Substring(0, 47) + "…";

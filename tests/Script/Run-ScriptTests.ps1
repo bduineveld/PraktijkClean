@@ -209,6 +209,129 @@ try {
         Assert-Gone $f
         Assert-True ([System.IO.Directory]::Exists($sub)) 'submap bestaat nog'
     }
+    # ---------------------------------------------------------------- Lege submappen (niveau Zwaar)
+    function Set-DirAge([string]$Dir, [double]$AgeDays) {
+        $t = [DateTime]::UtcNow.AddDays(-$AgeDays)
+        [System.IO.Directory]::SetCreationTimeUtc($Dir, $t)
+        [System.IO.Directory]::SetLastWriteTimeUtc($Dir, $t)
+    }
+    function Assert-DirExists([string]$Dir, [string]$What) { Assert-True ([System.IO.Directory]::Exists($Dir)) "$What bestaat nog" }
+    function Assert-DirGone([string]$Dir, [string]$What) { Assert-True (-not [System.IO.Directory]::Exists($Dir)) "$What is weggehaald" }
+    $heavy = @{ recurse = $true; removeEmptyFolders = $true }
+    function New-DirLinkForHeavy([string]$Link, [string]$Target) {
+        if ($script:PcIsWindows) { $null = cmd.exe /c mklink /J "`"$Link`"" "`"$Target`"" 2>&1 }
+        else { $null = New-Item -ItemType SymbolicLink -Path $Link -Target $Target }
+        return [System.IO.Directory]::Exists($Link)
+    }
+
+    Test-Case 'Zwaar: submappen die na opruimen leeg zijn worden weggehaald (ook geneste), de map zelf blijft' {
+        $d = New-TestDir
+        $a = Join-Path $d 'a'; $ab = Join-Path $a 'b'
+        $f1 = New-TestFile $a 'oud1.pdf' 30
+        $f2 = New-TestFile $ab 'oud2.pdf' 30
+        Set-DirAge $ab 30; Set-DirAge $a 30
+        $r = Invoke-Test (New-TestConfig @(New-FolderSpec $d $heavy))
+        Assert-Gone $f1; Assert-Gone $f2
+        Assert-DirGone $ab 'geneste submap'; Assert-DirGone $a 'submap'
+        Assert-DirExists $d 'geselecteerde map'
+        Assert-Equal 2 $r.EmptyFolderCount 'lege mappen in aanmerking'
+        Assert-Equal 2 $r.EmptyFolderDeleted 'lege mappen weggehaald'
+        Assert-Equal 2 $r.DeletedCount 'bestanden (mappen tellen apart)'
+        Assert-Equal 2 @($r.DeletedList | Where-Object { $_.Kind -eq 'map-definitief' }).Count 'mappen in lijst verwijderde bestanden'
+    }
+    Test-Case 'Zwaar: al lege, oude submap wordt weggehaald; nieuwe lege submap blijft' {
+        $d = New-TestDir
+        $old = Join-Path $d 'oud-leeg'; $new = Join-Path $d 'nieuw-leeg'
+        [void][System.IO.Directory]::CreateDirectory($old); [void][System.IO.Directory]::CreateDirectory($new)
+        Set-DirAge $old 30
+        $r = Invoke-Test (New-TestConfig @(New-FolderSpec $d $heavy))
+        Assert-DirGone $old 'oude lege map'
+        Assert-DirExists $new 'nieuwe lege map'
+    }
+    Test-Case 'Zwaar: submap met een nieuw, verborgen of uitgesloten bestand blijft staan' {
+        $d = New-TestDir
+        $s1 = Join-Path $d 'met-nieuw'; $s2 = Join-Path $d 'met-verborgen'; $s3 = Join-Path $d 'met-uitzondering'
+        $young = New-TestFile $s1 'scan-vandaag.pdf' 0.001
+        $o1 = New-TestFile $s1 'oud.pdf' 30
+        $hid = New-TestFile $s2 'desktop.ini' 30
+        [System.IO.File]::SetAttributes($hid, [System.IO.FileAttributes]::Hidden)
+        $keep = New-TestFile $s3 'snelkoppeling.lnk' 30
+        foreach ($x in @($s1, $s2, $s3)) { Set-DirAge $x 30 }
+        $r = Invoke-Test (New-TestConfig @(New-FolderSpec $d $heavy))
+        Assert-Gone $o1
+        Assert-Exists $young; Assert-Exists $hid; Assert-Exists $keep
+        Assert-DirExists $s1 'map met nieuw bestand'; Assert-DirExists $s2 'map met verborgen bestand'; Assert-DirExists $s3 'map met uitzondering'
+        Assert-Equal 0 $r.EmptyFolderCount 'geen lege mappen'
+    }
+    Test-Case 'Zwaar: uitgesloten submap (ook leeg) en submap met uitgesloten naam blijven staan' {
+        $d = New-TestDir
+        $scans = Join-Path $d 'Scans'; $proto = Join-Path $d 'protocol-2024'
+        [void][System.IO.Directory]::CreateDirectory($scans); [void][System.IO.Directory]::CreateDirectory($proto)
+        Set-DirAge $scans 30; Set-DirAge $proto 30
+        $spec = New-FolderSpec $d (@{ recurse = $true; removeEmptyFolders = $true; exclusions = [ordered]@{ files = @(); subfolders = @('Scans'); patterns = @('protocol-*'); extensions = @() } })
+        $r = Invoke-Test (New-TestConfig @($spec))
+        Assert-DirExists $scans 'uitgesloten submap'
+        Assert-DirExists $proto 'map met uitgesloten naam'
+    }
+    Test-Case 'Midden: bestanden in submappen weg, lege submappen blijven' {
+        $d = New-TestDir
+        $sub = Join-Path $d 'sub'; $empty = Join-Path $d 'leeg'
+        $f = New-TestFile $sub 'oud.pdf' 30
+        [void][System.IO.Directory]::CreateDirectory($empty)
+        Set-DirAge $sub 30; Set-DirAge $empty 30
+        $r = Invoke-Test (New-TestConfig @(New-FolderSpec $d @{ recurse = $true }))
+        Assert-Gone $f
+        Assert-DirExists $sub 'submap'; Assert-DirExists $empty 'lege submap'
+        Assert-Equal 0 $r.EmptyFolderCount 'geen lege mappen bij Midden'
+    }
+    Test-Case 'Zwaar in simulatie: lege mappen worden voorspeld en genoemd, er verdwijnt niets' {
+        $d = New-TestDir
+        $sub = Join-Path $d 'sub'
+        $f = New-TestFile $sub 'oud.pdf' 30
+        Set-DirAge $sub 30
+        $r = Invoke-Test (New-TestConfig @(New-FolderSpec $d $heavy)) 'Simulate' $false $true
+        Assert-Exists $f; Assert-DirExists $sub 'submap'
+        Assert-Equal 1 $r.EmptyFolderCount 'voorspelde lege map'
+        Assert-Equal 'sub' $r.Folders[0].EmptyFolders[0].Name 'naam in simulatie'
+    }
+    Test-Case 'Zwaar: lege mappen tellen mee voor de limiet' {
+        $d = New-TestDir
+        $f = New-TestFile $d 'oud.pdf' 30
+        foreach ($n in 'x', 'y') { $p = Join-Path $d $n; [void][System.IO.Directory]::CreateDirectory($p); Set-DirAge $p 30 }
+        $r = Invoke-Test (New-TestConfig @(New-FolderSpec $d $heavy) @{ maxFilesPerRun = 2 })
+        Assert-Equal 3 $r.ExitCode 'limiet'
+        Assert-Exists $f
+        Assert-DirExists (Join-Path $d 'x') 'map x'
+    }
+    Test-Case 'Zwaar: koppeling (junction) naar een andere map wordt nooit weggehaald of gevolgd' {
+        $d = New-TestDir
+        $target = New-TestDir 'doel'
+        $link = Join-Path $d 'koppeling'
+        if (-not (New-DirLinkForHeavy $link $target)) { Skip 'kon geen koppeling maken' }
+        $tf = New-TestFile $target 'doelbestand.pdf' 30
+        $r = Invoke-Test (New-TestConfig @(New-FolderSpec $d $heavy))
+        Assert-Exists $tf
+        Assert-True ([System.IO.Directory]::Exists($link)) 'koppeling bestaat nog'
+        Assert-DirExists $target 'doelmap'
+    }
+    Test-Case 'Zwaar: weggehaalde lege map staat als map in de lijst verwijderde bestanden' {
+        # De echte Prullenbak wordt in tests nooit gebruikt (deleteMode is hier 'permanent').
+        $d = New-TestDir
+        $sub = Join-Path $d 'leeg'; [void][System.IO.Directory]::CreateDirectory($sub); Set-DirAge $sub 30
+        $r = Invoke-Test (New-TestConfig @(New-FolderSpec $d $heavy))
+        Assert-Equal 'map-definitief' $r.DeletedList[0].Kind 'soort'
+        Assert-DirGone $sub 'lege map'
+    }
+    Test-Case 'Configuratie: removeEmptyFolders zonder recurse of geen true/false is ongeldig; ontbreken = uit' {
+        $d = New-TestDir
+        $r1 = Invoke-Test (New-TestConfig @(New-FolderSpec $d @{ recurse = $false; removeEmptyFolders = $true }))
+        Assert-Equal 'configuratiefout' $r1.Action 'zonder recurse'
+        $r2 = Invoke-Test (New-TestConfig @(New-FolderSpec $d @{ recurse = $true; removeEmptyFolders = 'ja' }))
+        Assert-Equal 'configuratiefout' $r2.Action 'geen bool'
+        $empty = Join-Path $d 'leeg'; [void][System.IO.Directory]::CreateDirectory($empty); Set-DirAge $empty 30
+        $r3 = Invoke-Test (New-TestConfig @(New-FolderSpec $d @{ recurse = $true }))
+        Assert-DirExists $empty 'lege map zonder het veld'
+    }
     Test-Case 'Uitgeschakelde map wordt overgeslagen' {
         $d = New-TestDir
         $f = New-TestFile $d 'oud.pdf' 30
