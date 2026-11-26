@@ -60,7 +60,6 @@ internal sealed class MainForm : Form
     private readonly ToolStripMenuItem _miCleanNow = new("Nu opruimen…");
     private readonly ToolStripMenuItem _miPause = new("Tijdelijk pauzeren");
     private readonly ToolStripMenuItem _miSimulationMode = new("Terug naar simulatiemodus");
-    private readonly ToolStripMenuItem _miTray = new("Icoon rechtsonder in het systeemvak");
     private readonly ToolStripMenuItem _miLog = new("Logboek openen");
     private readonly ToolStripMenuItem _miTrouble = new("Problemen oplossen");
     private readonly ToolStripMenuItem _miRepair = new("Geplande taak en script opnieuw instellen");
@@ -105,7 +104,15 @@ internal sealed class MainForm : Form
     private readonly ComboBox _cmbRetention = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 210 };
     private readonly NumberBox _numDays = new() { Minimum = 0, Maximum = 3650, Width = 70 };
     private FlowLayoutPanel _daysRow = null!;
-    private readonly SubfolderCards _cards = new() { Width = 520, Margin = new Padding(3, 2, 3, 2) };
+    /// <summary>Compacte keuze voor submappen; de uitgebreide kaarten staan in het venster dat opent bij dubbelklikken.</summary>
+    private static readonly string[] SubfolderChoices = { "Alleen deze map (submappen overslaan)", "Ook bestanden in submappen", "Ook lege submappen weghalen" };
+    private readonly ComboBox _cmbSubfolders = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 260 };
+    private int _subfolderIndex;
+    private readonly LinkLabel _lnkFolderDialog = new() { Text = "Uitleg en voorbeelden…", AutoSize = true, Margin = new Padding(6, 7, 3, 3) };
+    private readonly Label _lblListHint = new()
+    {
+        Text = "Dubbelklik op een map om hem met uitleg in te stellen.", AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(3, 6, 3, 0),
+    };
     private readonly Label _lblSubfolderHint = new() { AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(3, 0, 3, 6) };
     private readonly CheckBox _chkAllowSync = new() { Text = "Opruimen op deze OneDrive-/netwerklocatie toestaan (afgeraden)", AutoSize = true };
     private readonly ListView _lstExclusions = new()
@@ -120,7 +127,6 @@ internal sealed class MainForm : Form
     private readonly CheckBox _chkDaily = new() { Text = "Dagelijks om", AutoSize = true };
     private readonly DateTimePicker _dtpTime = new() { Format = DateTimePickerFormat.Custom, CustomFormat = "HH:mm", ShowUpDown = true, Width = 80 };
     private readonly CheckBox _chkLogon = new() { Text = "Bij aanmelden van Windows", AutoSize = true };
-    private readonly LinkLabel _lnkDefaults = new() { Text = "Standaard voor nieuwe mappen…", AutoSize = true, Margin = new Padding(3, 8, 3, 0) };
     private readonly LinkLabel _lnkLogoff = new() { Text = "Waarom niet bij afmelden?", AutoSize = true };
     private readonly RadioButton _rbRecycle = new() { Text = "Naar de Prullenbak (aanbevolen)", AutoSize = true };
     private readonly RadioButton _rbPermanent = new() { Text = "Direct definitief verwijderen", AutoSize = true };
@@ -130,6 +136,16 @@ internal sealed class MainForm : Form
     private readonly LinkLabel _lnkBinInfo = new() { Text = "Uitleg", AutoSize = true, Margin = new Padding(6, 7, 3, 3) };
     private readonly NumberBox _numMaxFiles = new() { Minimum = 1, Maximum = 5000, Width = 80 };
     private readonly LinkLabel _lnkDestroy = new() { Text = "Verwijderen is niet hetzelfde als veilig vernietigen – lees meer", AutoSize = true };
+
+    // ---------------------------------------------------------------- Tabblad Voorkeuren
+    private readonly ComboBox _cmbDefRetention = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 210 };
+    private readonly NumberBox _numDefDays = new() { Minimum = 0, Maximum = 3650, Width = 70 };
+    private FlowLayoutPanel _defDaysRow = null!;
+    private readonly ComboBox _cmbDefSubfolders = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 260 };
+    private readonly CheckBox _chkTray = new() { Text = "Icoon van PraktijkClean rechtsonder in het systeemvak tonen", AutoSize = true };
+    private readonly TrayPreview _trayPreview = new();
+    /// <summary>De gebruiker heeft het vinkje voor het icoon veranderd en nog niet opgeslagen.</summary>
+    private bool _trayEdited;
 
     // ---------------------------------------------------------------- Tabblad Logboek
     private readonly Label _lblLastRun = new() { AutoSize = true };
@@ -258,7 +274,9 @@ internal sealed class MainForm : Form
         ClientSize = new Size(900, 680);
         MinimumSize = new Size(780, 580);
         if (AppIcons.App is { } appIcon) Icon = appIcon;
-        foreach (var o in RetentionOptions.All) _cmbRetention.Items.Add(o);
+        foreach (var o in RetentionOptions.All) { _cmbRetention.Items.Add(o); _cmbDefRetention.Items.Add(o); }
+        _cmbSubfolders.Items.AddRange(SubfolderChoices);
+        _cmbDefSubfolders.Items.AddRange(SubfolderChoices);
 
         // ---- Kop: status links, hoofdknop en menu rechts
         _lblState.Font = new Font("Segoe UI Semibold", 13F, FontStyle.Bold);
@@ -279,7 +297,7 @@ internal sealed class MainForm : Form
         _menu.Items.AddRange(new ToolStripItem[]
         {
             _miCleanNow, _miPause, _miSimulationMode, new ToolStripSeparator(),
-            _miTray, _miLog, new ToolStripSeparator(),
+            _miLog, new ToolStripSeparator(),
             _miCheckUpdate, _miAutoUpdate, new ToolStripSeparator(),
             _miTrouble, _miUninstall, new ToolStripSeparator(),
             _miAbout,
@@ -300,7 +318,6 @@ internal sealed class MainForm : Form
         _miCleanNow.ToolTipText = "Ruimt direct op, na een overzicht en uw bevestiging.";
         _miRepair.ToolTipText = "Zet het opschoonscript en de geplande taak opnieuw neer met uw huidige instellingen. " +
                                 "Uw instellingen blijven behouden; er wordt niets verwijderd.";
-        _miTray.ToolTipText = "Groen = aan, blauw = simulatie, oranje = gepauzeerd, rood = probleem. Start bij elke aanmelding.";
         _miUninstall.ToolTipText = "Haalt PraktijkClean weg (taak, instellingen, logboek, Startmenu). Uw eigen bestanden blijven staan.";
 
         // ---- Tabblad Mappen: lijst links, instellingen van de gekozen map rechts
@@ -315,7 +332,7 @@ internal sealed class MainForm : Form
         folderLeft.Controls.Add(Heading("Mappen", top: 0), 0, 0);
         folderLeft.Controls.Add(_lstFolders, 0, 1);
         folderLeft.Controls.Add(Row(_btnAddFolder, _btnRemoveFolder), 0, 2);
-        folderLeft.Controls.Add(_lnkDefaults, 0, 3);
+        folderLeft.Controls.Add(_lblListHint, 0, 3);
 
         var details = Grid();
         AddRow(details, _lblFolderName);
@@ -323,11 +340,10 @@ internal sealed class MainForm : Form
         AddRow(details, Wrap(_lblFolderWarning));
         AddRow(details, _chkEnabled);
         _daysRow = Row(_numDays, Caption("dagen"));
-        AddRow(details, Row(Caption("Opruimen als een bestand:"), _cmbRetention, _daysRow));
-        AddRow(details, Hint("Leeftijd = tijd sinds het bestand is aangemaakt of gewijzigd (de nieuwste datum telt). Een net gedownload bestand is dus altijd 'nieuw'."));
-        AddRow(details, Caption("Submappen:"));
-        AddRow(details, _cards);
-        _cards.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        var choices = Form2(
+            (Caption("Opruimen als een bestand:"), Row(_cmbRetention, _daysRow)),
+            (Caption("Submappen:"), Row(_cmbSubfolders, _lnkFolderDialog)));
+        AddRow(details, choices);
         AddRow(details, Wrap(_lblSubfolderHint));
         AddRow(details, _chkAllowSync);
         AddRow(details, Heading("Nooit verwijderen (uitzonderingen)"));
@@ -369,6 +385,23 @@ internal sealed class MainForm : Form
         AddRow(plan, _lnkDestroy);
         AddRow(plan, Hint("Wijzigingen op dit tabblad en bij Mappen worden pas actief als u op 'Opslaan' klikt.", top: 14));
 
+        // ---- Tabblad Voorkeuren
+        var prefs = Grid();
+        AddRow(prefs, Heading("Standaard voor nieuwe mappen", top: 0));
+        AddRow(prefs, Hint("Zo staat het al ingevuld als u een map toevoegt. Mappen die al in de lijst staan, veranderen hierdoor niet.", bottom: 4));
+        _defDaysRow = Row(_numDefDays, Caption("dagen"));
+        AddRow(prefs, Form2(
+            (Caption("Opruimen als een bestand:"), Row(_cmbDefRetention, _defDaysRow)),
+            (Caption("Submappen:"), _cmbDefSubfolders)));
+        AddRow(prefs, Heading("Icoon in het systeemvak", top: 22));
+        AddRow(prefs, _chkTray);
+        AddRow(prefs, _trayPreview);
+        _trayPreview.Margin = new Padding(24, 6, 3, 6);
+        var trayHint = Hint(Texts.TrayExplanation);
+        trayHint.Margin = new Padding(24, 2, 3, 8);
+        AddRow(prefs, trayHint);
+        AddRow(prefs, Hint("Wijzigingen op dit tabblad gelden nadat u op 'Opslaan' heeft geklikt.", top: 14));
+
         // ---- Tabblad Logboek: eerst wat er is verwijderd, daarna de controles
         var log = Grid();
         AddRow(log, Heading("Verwijderde bestanden", top: 0));
@@ -395,6 +428,7 @@ internal sealed class MainForm : Form
         _tabs.TabPages.Add(Page("Mappen", folders));
         _tabs.TabPages.Add(Page("Planning en veiligheid", Scroller(plan, padding: 16)));
         _tabs.TabPages.Add(Page("Logboek", Scroller(log, padding: 16)));
+        _tabs.TabPages.Add(Page("Voorkeuren", Scroller(prefs, padding: 16)));
 
         // ---- Onderbalk
         var footer = new TableLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, ColumnCount = 4, Padding = new Padding(10, 8, 10, 10) };
@@ -551,6 +585,24 @@ internal sealed class MainForm : Form
         return f;
     }
 
+    /// <summary>Twee kolommen (bijschrift, invoer) zodat de keuzelijsten onder elkaar netjes uitlijnen.</summary>
+    private static TableLayoutPanel Form2(params (Control Caption, Control Input)[] rows)
+    {
+        var t = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0, 2, 0, 2) };
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        foreach (var (caption, input) in rows)
+        {
+            t.RowCount++;
+            t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            caption.Anchor = AnchorStyles.Left;
+            input.Anchor = AnchorStyles.Left;
+            t.Controls.Add(caption, 0, t.RowCount - 1);
+            t.Controls.Add(input, 1, t.RowCount - 1);
+        }
+        return t;
+    }
+
     private static Label Caption(string text) => new() { Text = text, AutoSize = true, Margin = new Padding(3, 7, 3, 3) };
 
     private Label Heading(string text, int top = 16) => new()
@@ -622,9 +674,29 @@ internal sealed class MainForm : Form
         _chkEnabled.CheckedChanged += (_, _) => EditFolder(f => f.Enabled = _chkEnabled.Checked);
         _cmbRetention.SelectedIndexChanged += (_, _) => OnRetentionChoice();
         _numDays.ValueChanged += (_, _) => EditFolder(f => f.RetentionDays = (int)_numDays.Value);
-        _cards.LevelChanging += (_, e) => OnSubfolderLevelChanging(e);
-        _cards.LevelChanged += (_, _) => OnSubfolderLevelChanged();
-        _lnkDefaults.LinkClicked += (_, _) => OnEditDefaults();
+        _cmbSubfolders.SelectedIndexChanged += (_, _) => OnSubfolderChoice();
+        _lnkFolderDialog.LinkClicked += (_, _) => OnFolderDialog();
+        _lstFolders.DoubleClick += (_, e) =>
+        {
+            if (e is MouseEventArgs m && _lstFolders.IndexFromPoint(m.Location) < 0) return;
+            OnFolderDialog();
+        };
+        _lstFolders.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; OnFolderDialog(); } };
+        _cmbDefRetention.SelectedIndexChanged += (_, _) => OnDefaultRetentionChoice();
+        _numDefDays.ValueChanged += (_, _) => { if (!_loadingUi) { _config.DefaultRetentionDays = (int)_numDefDays.Value; MarkDirty(); } };
+        _cmbDefSubfolders.SelectedIndexChanged += (_, _) =>
+        {
+            if (_loadingUi || _cmbDefSubfolders.SelectedIndex < 0) return;
+            _config.DefaultSubfolderLevel = SubfolderLevels.All[_cmbDefSubfolders.SelectedIndex].Level;
+            MarkDirty();
+        };
+        _chkTray.CheckedChanged += (_, _) =>
+        {
+            _trayPreview.IconVisible = _chkTray.Checked;
+            if (_loadingUi) return;
+            _trayEdited = true;
+            MarkDirty();
+        };
         _chkAllowSync.CheckedChanged += (_, _) => OnAllowSyncChanged();
         _lstExclusions.SelectedIndexChanged += (_, _) => UpdateExclusionButtons();
         _lstExclusions.KeyDown += (_, e) => { if (e.KeyCode == Keys.Delete) OnRemoveExclusions(); };
@@ -657,7 +729,6 @@ internal sealed class MainForm : Form
         _miCleanNow.Click += async (_, _) => await RunBusy("Bezig met opruimen…", OnCleanNow);
         _miPause.Click += async (_, _) => await RunBusy("Bezig…", OnPauseToggle);
         _miSimulationMode.Click += async (_, _) => await RunBusy("Bezig…", OnActivateOrDeactivate);
-        _miTray.Click += async (_, _) => await OnTrayToggle();
         _miLog.Click += (_, _) => OnOpenLog();
         _miRepair.Click += async (_, _) => await RunBusy("Taak en script opnieuw instellen…", OnRepair);
         _miOpenDir.Click += (_, _) => OnOpenDirectory();
@@ -733,6 +804,16 @@ internal sealed class MainForm : Form
             _numBinDays.Enabled = _chkEmptyBin.Checked;
             _cmbListDays.SelectedIndex = DeletedFilesList.OptionIndexFor(_config.DeletedFilesListDays);
             UpdateDeleteNote();
+
+            int defDays = Math.Min(Math.Max(_config.DefaultRetentionDays, 0), 3650);
+            _cmbDefRetention.SelectedIndex = RetentionOptions.IndexFor(defDays);
+            _numDefDays.Value = defDays;
+            _defDaysRow.Visible = RetentionOptions.All[_cmbDefRetention.SelectedIndex].Days is null;
+            _cmbDefSubfolders.SelectedIndex = SubfolderLevels.IndexOf(_config.DefaultSubfolderLevel);
+            // Nieuwe installatie: het icoon staat standaard aan. Daarna geldt wat er is ingesteld.
+            _chkTray.Checked = !File.Exists(_layout.ConfigPath) || TrayIntegration.IsEnabled();
+            _trayPreview.IconVisible = _chkTray.Checked;
+            _trayEdited = false;
         }
         finally { _loadingUi = false; }
         ShowSelectedFolder();
@@ -760,7 +841,7 @@ internal sealed class MainForm : Form
         _loadingUi = true;
         try
         {
-            foreach (var c in new Control[] { _chkEnabled, _cmbRetention, _numDays, _cards, _chkAllowSync, _lstExclusions, _btnExclAdd })
+            foreach (var c in new Control[] { _chkEnabled, _cmbRetention, _numDays, _cmbSubfolders, _lnkFolderDialog, _chkAllowSync, _lstExclusions, _btnExclAdd })
                 c.Enabled = f is not null;
             FillExclusions(f);
             _btnRemoveFolder.Enabled = f is not null && f.Type == FolderTypes.Custom;
@@ -772,9 +853,9 @@ internal sealed class MainForm : Form
             _cmbRetention.SelectedIndex = RetentionOptions.IndexFor(f.RetentionDays);
             _numDays.Value = Math.Min(Math.Max(f.RetentionDays, 0), 3650);
             _daysRow.Visible = RetentionOptions.All[_cmbRetention.SelectedIndex].Days is null;
-            _cards.Level = SubfolderLevels.Of(f);
-            _cards.RootName = f.DisplayName;
-            _lblSubfolderHint.Text = NewFolderDialog.HintFor(_cards.Level);
+            _subfolderIndex = SubfolderLevels.IndexOf(SubfolderLevels.Of(f));
+            _cmbSubfolders.SelectedIndex = _subfolderIndex;
+            _lblSubfolderHint.Text = FolderDialog.HintFor(SubfolderLevels.Of(f), legend: false);
             _chkAllowSync.Checked = f.AllowNetworkOrSync;
 
             var check = CheckPath(f.ExpectedPath);
@@ -824,22 +905,39 @@ internal sealed class MainForm : Form
     }
 
     /// <summary>Zwaarder maken vraagt om bevestiging; lichter maken niet (dan wordt er alleen minder opgeruimd).</summary>
-    private void OnSubfolderLevelChanging(LevelChangingEventArgs e)
+    private static bool ConfirmHeavierLevel(IWin32Window owner, string from, string to)
     {
-        if (_loadingUi || SelectedFolder is null) return;
-        if (SubfolderLevels.IndexOf(e.To) <= SubfolderLevels.IndexOf(e.From)) return;
-        bool ok = e.To == SubfolderLevels.Heavy
-            ? Confirm("Ook lege submappen weghalen?", Texts.SubfolderHeavyWarning, "Lege submappen weghalen", ConfirmIcon.Warning)
-            : Confirm("Ook bestanden in submappen opruimen?", Texts.SubfolderMediumWarning, "Submappen doorzoeken", ConfirmIcon.Warning);
-        e.Cancel = !ok;
+        if (SubfolderLevels.IndexOf(to) <= SubfolderLevels.IndexOf(from)) return true;
+        return to == SubfolderLevels.Heavy
+            ? ConfirmDialog.Ask(owner, "Ook lege submappen weghalen?", Texts.SubfolderHeavyWarning, "Lege submappen weghalen", ConfirmIcon.Warning)
+            : ConfirmDialog.Ask(owner, "Ook bestanden in submappen opruimen?", Texts.SubfolderMediumWarning, "Submappen doorzoeken", ConfirmIcon.Warning);
     }
 
-    private void OnSubfolderLevelChanged()
+    private void OnSubfolderChoice()
     {
-        if (_loadingUi || SelectedFolder is null) return;
-        string level = _cards.Level;
-        _lblSubfolderHint.Text = NewFolderDialog.HintFor(level);
+        if (_loadingUi || SelectedFolder is null || _cmbSubfolders.SelectedIndex < 0) return;
+        int to = _cmbSubfolders.SelectedIndex;
+        if (to == _subfolderIndex) return;
+        if (!ConfirmHeavierLevel(this, SubfolderLevels.All[_subfolderIndex].Level, SubfolderLevels.All[to].Level))
+        {
+            _loadingUi = true;
+            try { _cmbSubfolders.SelectedIndex = _subfolderIndex; }
+            finally { _loadingUi = false; }
+            return;
+        }
+        _subfolderIndex = to;
+        string level = SubfolderLevels.All[to].Level;
+        _lblSubfolderHint.Text = FolderDialog.HintFor(level, legend: false);
         EditFolder(x => SubfolderLevels.Apply(x, level));
+    }
+
+    private void OnDefaultRetentionChoice()
+    {
+        if (_cmbDefRetention.SelectedItem is not RetentionOptions.Option o) return;
+        _defDaysRow.Visible = o.Days is null;
+        if (_loadingUi) return;
+        _config.DefaultRetentionDays = o.Days ?? (int)_numDefDays.Value;
+        MarkDirty();
     }
 
     private void OnAllowSyncChanged()
@@ -932,14 +1030,14 @@ internal sealed class MainForm : Form
             // Instellingen en script zijn wel opgeslagen; alleen de taak is niet gelukt.
             _dirty = false;
             UpdateTitle();
-            StartRegistration(firstInstall);
+            StartRegistration(firstInstall, _chkTray.Checked);
             Warn("De instellingen zijn opgeslagen, maar de geplande taak kon niet worden ingesteld.\n\n" + ex.Message +
                  "\n\nHandmatige simulatie en 'Nu opruimen' werken wel. Probeer 'Meer > Problemen oplossen' of neem contact op met uw systeembeheerder.");
             return true;
         }
         _dirty = false;
         PruneDeletedList();
-        StartRegistration(firstInstall);
+        StartRegistration(firstInstall, _chkTray.Checked);
         if (showConfirmation && !firstInstall)
             Flash(TaskXmlBuilder.HasAnyTrigger(_config.Schedule)
                 ? "✓ Opgeslagen. De planning is bijgewerkt; er is niets verwijderd."
@@ -952,15 +1050,19 @@ internal sealed class MainForm : Form
     /// Zet de geïnstalleerde kopie, de Startmenu-snelkoppeling en de vermelding bij Geïnstalleerde apps neer.
     /// Op de achtergrond, omdat een virusscanner het kopiëren van een nieuwe .exe flink kan vertragen.
     /// </summary>
-    private void StartRegistration(bool firstInstallInfo)
+    /// <param name="tray">Het icoon in het systeemvak aan- of uitzetten (na 'Opslaan'); null = laten zoals het is.</param>
+    private void StartRegistration(bool firstInstallInfo, bool? tray = null)
     {
         Task.Run(() =>
         {
             AppRegistration.Install(_layout);
+            if (tray == true && !TrayIntegration.IsEnabled()) TrayIntegration.Enable(_layout);
+            else if (tray == false && TrayIntegration.IsEnabled()) TrayIntegration.Disable();
             TrayIntegration.EnsureRunning(_layout);
         }).ContinueWith(t =>
         {
             if (IsDisposed) return;
+            if (tray is not null) _trayEdited = false;   // pas nu: de achtergrondtaak heeft het icoon aan- of uitgezet
             if (t.Exception is not null)
             {
                 if (firstInstallInfo)
@@ -970,7 +1072,7 @@ internal sealed class MainForm : Form
             }
             if (!firstInstallInfo) return;
             if (_deferInstalledInfo) _installedInfoPending = true;
-            else Info(Texts.Installed);
+            else Info(Texts.Installed + (TrayIntegration.IsEnabled() ? Texts.TrayInstalledNote : ""));
         }, TaskScheduler.FromCurrentSynchronizationContext());
     }
 
@@ -1020,22 +1122,6 @@ internal sealed class MainForm : Form
         _dirty = false;
         _closeAfterBusy = true;
         return Task.CompletedTask;
-    }
-
-    private async Task OnTrayToggle()
-    {
-        bool enable = !TrayIntegration.IsEnabled();
-        if (enable && !File.Exists(_layout.ConfigPath))
-        {
-            Info("Sla eerst de instellingen op; daarna kunt u het icoon aanzetten.");
-            return;
-        }
-        await RunBusy(enable ? "Icoon wordt aangezet…" : "Icoon wordt uitgezet…", async () =>
-        {
-            // Kan enkele seconden duren (virusscanner, opstarten van het icoon): niet op de UI-thread.
-            await Task.Run(() => { if (enable) TrayIntegration.Enable(_layout); else TrayIntegration.Disable(); });
-            if (enable) Info(Texts.TrayEnabled);
-        });
     }
 
     // =====================================================================================
@@ -1366,7 +1452,12 @@ internal sealed class MainForm : Form
         _miPause.Enabled = installed;
         _miSimulationMode.Visible = installed && active;
         _miCleanNow.Enabled = installed;
-        _miTray.Checked = TrayIntegration.IsEnabled();
+        if (installed && !_trayEdited && _chkTray.Checked != TrayIntegration.IsEnabled())
+        {
+            _loadingUi = true;
+            try { _chkTray.Checked = TrayIntegration.IsEnabled(); }
+            finally { _loadingUi = false; }
+        }
         _miLog.Enabled = File.Exists(_layout.LogPath);
         _btnLog.Enabled = !_busy && File.Exists(_layout.LogPath);
         _miUninstall.Enabled = installed || AppRegistration.IsRegistered() || Directory.Exists(_layout.BaseDirectory);
@@ -1580,7 +1671,7 @@ internal sealed class MainForm : Form
         _deferInstalledInfo = true;
         try { await RunBusy("Simulatie wordt uitgevoerd…", OnSimulate); }
         finally { _deferInstalledInfo = false; }
-        if (_installedInfoPending) { _installedInfoPending = false; Info(Texts.InstalledAfterWizard); }
+        if (_installedInfoPending) { _installedInfoPending = false; Info(Texts.InstalledAfterWizard + (TrayIntegration.IsEnabled() ? Texts.TrayInstalledNote : "")); }
     }
 
     /// <summary>Controle op een map die in de wizard wordt gekozen (dezelfde regels als bij "Map toevoegen…").</summary>
@@ -1621,13 +1712,9 @@ internal sealed class MainForm : Form
             if (!Confirm("Map overlapt met een andere map", "Deze map ligt in (of om) een map die al in de lijst staat. Dat kan verwarrend zijn.",
                          "Toch toevoegen", ConfirmIcon.Warning)) return;
         }
-        using var choose = new NewFolderDialog(path, _config.DefaultRetentionDays, _config.DefaultSubfolderLevel, check.Warnings);
+        string name = Path.GetFileName(path.TrimEnd('\\')) is { Length: > 0 } n ? n : path;
+        using var choose = new FolderDialog(name, path, _config.DefaultRetentionDays, _config.DefaultSubfolderLevel, check.Warnings, isNew: true);
         if (choose.ShowDialog(this) != DialogResult.OK) return;
-        if (choose.SaveAsDefault)
-        {
-            _config.DefaultRetentionDays = choose.RetentionDays;
-            _config.DefaultSubfolderLevel = choose.Level;
-        }
         var folder = ConfigStore.CreateCustomFolder(ConfigStore.NextCustomId(_config), path, choose.Level, choose.RetentionDays);
         _config.Folders.Add(folder);
         _lstFolders.Items.Add(folder);
@@ -1635,15 +1722,19 @@ internal sealed class MainForm : Form
         MarkDirty();
     }
 
-    /// <summary>"Standaard voor nieuwe mappen…": bewaartermijn en submappen voor mappen die hierna worden toegevoegd.</summary>
-    private void OnEditDefaults()
+    /// <summary>Dubbelklik op een map (of "Uitleg en voorbeelden…"): het venster met uitleg en de grote kaarten.</summary>
+    private void OnFolderDialog()
     {
-        using var dialog = new NewFolderDialog(null, _config.DefaultRetentionDays, _config.DefaultSubfolderLevel, Array.Empty<string>());
+        var f = SelectedFolder;
+        if (f is null) return;
+        using var dialog = new FolderDialog(f.DisplayName, f.ExpectedPath, f.RetentionDays, SubfolderLevels.Of(f),
+            Array.Empty<string>(), isNew: false, ConfirmHeavierLevel);
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
-        if (dialog.RetentionDays == _config.DefaultRetentionDays && dialog.Level == _config.DefaultSubfolderLevel) return;
-        _config.DefaultRetentionDays = dialog.RetentionDays;
-        _config.DefaultSubfolderLevel = dialog.Level;
-        MarkDirty();
+        if (dialog.RetentionDays == f.RetentionDays && dialog.Level == SubfolderLevels.Of(f)) return;
+        f.RetentionDays = dialog.RetentionDays;
+        SubfolderLevels.Apply(f, dialog.Level);
+        EditFolder(_ => { });
+        ShowSelectedFolder();
     }
 
     private void OnRemoveFolder()

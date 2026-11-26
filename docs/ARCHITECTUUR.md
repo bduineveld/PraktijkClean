@@ -56,7 +56,8 @@ src/PraktijkClean/               De beheerapp (vensters en teksten)
    ConfirmDialog.cs              Vraagvenster met duidelijke knoppen ("Activeren", "Annuleren") in plaats van Ja/Nee
    DialogParts.cs                Bouwstenen voor vensters in dezelfde stijl (kop, tekst, knoppenbalk)
    SubfolderCards.cs             De drie kaarten voor submappen (Licht/Midden/Zwaar) met voorbeeldboompje
-   NewFolderDialog.cs            Venster na "Map toevoegen…" en "Standaard voor nieuwe mappen…"
+   FolderDialog.cs               Venster met uitleg en kaarten: na "Map toevoegen…" en bij dubbelklikken op een map
+   TrayPreview.cs                Plaatje van de taakbalk met het icoon (tabblad Voorkeuren)
    SetupWizard.cs                Startwizard bij de allereerste start (drie stappen en een overzicht)
    AppRegistration.cs            Installatie als app: kopie in LOCALAPPDATA, Startmenu, Geïnstalleerde apps
    AppUninstall.cs               Volledig verwijderen (menu of /uninstall vanuit Instellingen > Apps)
@@ -268,7 +269,8 @@ Uitzetten per gebruiker (`CheckForUpdates` = 0) of voor iedereen via `HKLM\SOFTW
 
 ## Icoon in het systeemvak (optioneel)
 
-Standaard uit; aan te zetten via **☰ Meer → Icoon rechtsonder in het systeemvak**. Dan:
+Bij een nieuwe installatie aan (het vinkje op het tabblad *Voorkeuren* staat dan aan en wordt bij de eerste
+*Opslaan* toegepast); daarna aan of uit te zetten op dat tabblad, ook pas na *Opslaan*. Staat het aan, dan:
 
 - zet de app de geïnstalleerde exe met `/tray` in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
   (per gebruiker, geen administratorrechten nodig), zodat het icoon bij elke aanmelding start. Aan- en uitzetten

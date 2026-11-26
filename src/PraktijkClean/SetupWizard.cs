@@ -152,7 +152,7 @@ internal sealed class SetupWizard : Form
         _cards.Margin = new Padding(0, 2, 0, 4);
         DialogParts.Add(t, _cards, stretch: true);
         DialogParts.Add(t, _lblLevelHint);
-        _cards.LevelChanged += (_, _) => _lblLevelHint.Text = NewFolderDialog.HintFor(_cards.Level);
+        _cards.LevelChanged += (_, _) => _lblLevelHint.Text = FolderDialog.HintFor(_cards.Level, legend: true);
         return t;
     }
 
@@ -266,7 +266,7 @@ internal sealed class SetupWizard : Form
         int di = Array.IndexOf(DayChoices, _choices.RetentionDays);
         _rbDays[di >= 0 ? di : 0].Checked = true;
         _cards.Level = _choices.SubfolderLevel;
-        _lblLevelHint.Text = NewFolderDialog.HintFor(_cards.Level);
+        _lblLevelHint.Text = FolderDialog.HintFor(_cards.Level, legend: true);
         _rbRecycle.Checked = _choices.RecycleBin;
         _rbPermanent.Checked = !_choices.RecycleBin;
         _chkEmptyBin.Checked = _choices.EmptyRecycleBin;

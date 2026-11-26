@@ -81,12 +81,17 @@ internal static class Texts
         "Net als bij de mappen gebeurt dit pas als automatische opschoning actief is; in simulatiemodus wordt " +
         "alleen geteld.";
 
-    public const string TrayEnabled =
-        "Het icoon staat nu rechtsonder in het systeemvak en start voortaan bij elke aanmelding.\n\n" +
-        "Groen = aan, blauw = simulatie, oranje = gepauzeerd, rood = probleem, grijs = nog niet ingesteld. " +
-        "Ga met de muis over het icoon om te zien wat er vandaag is opgeruimd; klik erop om PraktijkClean te openen.\n\n" +
-        "Ziet u het icoon niet? Windows verbergt nieuwe icoontjes achter het pijltje (^) rechtsonder. Sleep het " +
+    public const string AgeExplanation =
+        "Leeftijd = tijd sinds het bestand is aangemaakt of gewijzigd (de nieuwste datum telt). Een net gedownload bestand is dus altijd 'nieuw'.";
+
+    public const string TrayExplanation =
+        "Het icoon start bij elke aanmelding. Ga er met de muis over om te zien wat er vandaag is opgeruimd; klik erop om " +
+        "PraktijkClean te openen. Ziet u het niet? Windows zet nieuwe icoontjes soms achter het pijltje (^): sleep het " +
         "icoon van daar naar de taakbalk om het altijd te zien.";
+
+    public const string TrayInstalledNote =
+        "\n\nRechtsonder in het systeemvak staat nu het icoon van PraktijkClean (eventueel achter het pijltje ^). " +
+        "Uitzetten kan op het tabblad Voorkeuren.";
 
     public const string ClearDeletedListConfirm =
         "Alleen de namen in deze lijst verdwijnen. Bestanden worden hierdoor niet teruggezet en ook niet verwijderd; " +

@@ -92,7 +92,6 @@ de wizard niet (dan ziet u een melding).
 | Nu opruimen… | Direct opruimen, na een overzicht en bevestiging. |
 | Tijdelijk pauzeren / Hervatten | Zet de geplande taak tijdelijk uit of weer aan. |
 | Terug naar simulatiemodus | Zet het echte verwijderen uit (alleen zichtbaar als het aan staat). |
-| Icoon rechtsonder in het systeemvak | Aan/uit, zie hieronder. |
 | Logboek openen | Toont het logboek (zonder bestandsnamen) in Kladblok. Welke bestanden zijn verwijderd, ziet u op het tabblad *Logboek*. |
 | Problemen oplossen → Geplande taak en script opnieuw instellen | Zet script en taak opnieuw neer met de huidige instellingen. Dit is **geen** terugzetten naar de standaardinstellingen. |
 | Problemen oplossen → Programmamap openen | Opent `%LOCALAPPDATA%\PraktijkClean`. |
@@ -105,11 +104,12 @@ De kop bovenaan is **groen = aan** (er wordt automatisch opgeruimd), **blauw = s
 *Herstellen*), **grijs** = nog niet ingesteld. Eronder staan wat er de **afgelopen 7 dagen** is opgeruimd, de
 laatste en de volgende controle. Het tabblad *Logboek* geeft meer details.
 
-Wilt u de status altijd zien? Kies dan **☰ Meer → Icoon rechtsonder in het systeemvak**. Het icoon heeft
+Rechtsonder in het systeemvak staat het icoon van PraktijkClean (bij een nieuwe installatie staat het aan; uit te
+zetten op het tabblad *Voorkeuren*, met een plaatje van waar het staat). Het icoon heeft
 dezelfde kleuren (met een teken: ✓ aan, ○ simulatie, ‖ gepauzeerd, ! probleem), toont bij aanwijzen wat er
 vandaag is opgeruimd en opent PraktijkClean met een klik; via de rechtermuisknop kunt u pauzeren of het icoon
 verbergen. Windows zet nieuwe icoontjes eerst achter het pijltje (^); sleep het naar de taakbalk om het altijd
-te zien. Het icoon start bij elke aanmelding en staat standaard uit.
+te zien. Het icoon start bij elke aanmelding.
 
 Het **logboek** staat in `%LOCALAPPDATA%\PraktijkClean\logs\praktijkclean.log`: één regel per controle met
 de aantallen, nooit bestandsnamen. Boven 512 kB wordt het oude deel bewaard als `praktijkclean.1.log`.
@@ -130,15 +130,17 @@ verwijderd.
 
 ### Submappen: Licht, Midden of Zwaar
 
-Per map kiest u op het tabblad *Mappen* bij **Submappen** een van drie kaarten. Elke kaart laat met een klein
-voorbeeld zien wat er gebeurt: wat **rood doorgestreept** is, wordt opgeruimd als het ouder is dan de bewaartermijn.
-De streepjes rechtsboven geven aan hoe ver het gaat.
+Per map kiest u op het tabblad *Mappen* bij **Submappen** een van drie mogelijkheden in een keuzelijst. Wilt u
+uitleg? **Dubbelklik op de map** in de lijst (of klik op *Uitleg en voorbeelden…*): dan opent een venster met de
+bewaartermijn en drie grote kaarten. Elke kaart laat met een klein voorbeeld zien wat er gebeurt: wat **rood
+doorgestreept** is, wordt opgeruimd als het ouder is dan de bewaartermijn. De streepjes rechtsboven geven aan hoe
+ver het gaat.
 
 - **Alleen deze map** (Licht, standaard): alleen bestanden direct in de map. Submappen en alles daarin
   blijven staan. Handig voor gebruikers: zet wat moet blijven in een submap, bijvoorbeeld `Bureaublad\Bewaren`.
-- **Ook submappen** (Midden): ook oude bestanden in submappen worden opgeruimd; de submappen zelf
+- **Ook bestanden in submappen** (Midden): ook oude bestanden in submappen worden opgeruimd; de submappen zelf
   blijven altijd staan.
-- **Ook lege submappen** (Zwaar): als Midden, en submappen die daarna leeg zijn (of al leeg waren) worden
+- **Ook lege submappen weghalen** (Zwaar): als Midden, en submappen die daarna leeg zijn (of al leeg waren) worden
   weggehaald, als ze ouder zijn dan de bewaartermijn. Een submap waar nog iets in staat (een nieuwer, verborgen of
   uitgesloten bestand) blijft altijd staan.
 
@@ -148,11 +150,10 @@ simulatievenster met de rechtermuisknop op de lege submap en kies "altijd laten 
 
 ### Een map toevoegen en de standaard voor nieuwe mappen
 
-Na **Map toevoegen…** en het kiezen van de map opent een venster met de bewaartermijn en de drie kaarten voor
-submappen, al ingevuld met de standaard voor nieuwe mappen (bij een nieuwe installatie 30 dagen en *Alleen deze
-map*). Vink **Deze keuzes ook gebruiken voor mappen die ik hierna toevoeg** aan om ze meteen de nieuwe standaard te
-maken. Via de link **Standaard voor nieuwe mappen…** onder de lijst stelt u de standaard ook los in. Mappen die al in
-de lijst staan, veranderen daardoor niet. Zoals elke wijziging geldt dit pas na *Opslaan*.
+Na **Map toevoegen…** en het kiezen van de map opent hetzelfde venster met uitleg (bewaartermijn en de drie
+kaarten), al ingevuld met de standaard voor nieuwe mappen. Die standaard stelt u in op het tabblad **Voorkeuren**
+(bij een nieuwe installatie 30 dagen en *Alleen deze map*). Mappen die al in de lijst staan, veranderen daardoor
+niet. Zoals elke wijziging geldt dit pas na *Opslaan*.
 
 ### Uitzonderingen
 

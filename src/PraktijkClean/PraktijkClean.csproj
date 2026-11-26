@@ -19,7 +19,7 @@
     <GenerateSupportedRuntime>false</GenerateSupportedRuntime>
 
     <!-- Versie-informatie: zichtbaar bij Eigenschappen > Details van de .exe. -->
-    <Version>1.4.0</Version>
+    <Version>1.4.1</Version>
     <Product>PraktijkClean</Product>
     <Description>Automatische opschoning van bureaublad en downloads voor huisartsenpraktijken</Description>
     <Copyright>MIT-licentie</Copyright>

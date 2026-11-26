@@ -1,5 +1,19 @@
 # Bekende beperkingen en nog niet geteste onderdelen
 
+## Getest op Windows 11 (versie 1.4.1, nog niet uitgebracht)
+
+Getest in een nieuwe Parallels-VM (Windows 11 ARM64, build 26300, schermschaal 200 %):
+
+- `build.ps1` volledig: alle scripttests en 66 C#-tests geslaagd; `PraktijkClean-1.4.1.exe` (582 kB).
+- 1.4.0 eerst schoon geïnstalleerd via de startwizard (standaardkeuzes), daarna 1.4.1 eroverheen geopend en opgeslagen:
+  geïnstalleerde exe en script naar 1.4.1, instellingen behouden.
+- Tabblad *Mappen*: compacte keuzelijst voor submappen met de link *Uitleg en voorbeelden…* en de tip over
+  dubbelklikken. Tabblad *Voorkeuren*: standaard voor nieuwe mappen, vinkje voor het icoon met het plaatje (aan en
+  uit); na *Opslaan* stond het icoon in het opstartitem en draaide het.
+- **Niet** in de VM bekeken: het venster dat opent bij dubbelklikken op een map (zelfde venster als na *Map
+  toevoegen…*, maar met OK) en de bevestiging bij een zwaardere keuze in de compacte keuzelijst; een nieuwe
+  installatie waarbij het icoon vanzelf aan gaat.
+
 ## Getest op Windows 11 (versie 1.4.0)
 
 Getest op dezelfde Windows 11-computer (ARM64, build 26300, schermschaal 200 %):

@@ -146,8 +146,8 @@ internal sealed class TrayContext : ApplicationContext
 
     private void HideIcon()
     {
-        if (!ConfirmDialog.Ask(null, "Icoon verbergen?", "PraktijkClean blijft gewoon werken. U kunt het icoon later weer aanzetten in de app " +
-                               "('Icoon rechtsonder in het systeemvak tonen').", "Icoon verbergen", acceptIsDefault: true))
+        if (!ConfirmDialog.Ask(null, "Icoon verbergen?", "PraktijkClean blijft gewoon werken. U kunt het icoon later weer aanzetten in de app, " +
+                               "op het tabblad Voorkeuren.", "Icoon verbergen", acceptIsDefault: true))
             return;
         try { TrayIntegration.RemoveAutostart(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
