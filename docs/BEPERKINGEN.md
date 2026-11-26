@@ -1,6 +1,6 @@
 # Bekende beperkingen en nog niet geteste onderdelen
 
-## Getest op Windows 11 (versie 1.4.1, nog niet uitgebracht)
+## Getest op Windows 11 (versie 1.4.1)
 
 Getest in een nieuwe Parallels-VM (Windows 11 ARM64, build 26300, schermschaal 200 %):
 
