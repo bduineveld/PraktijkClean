@@ -65,7 +65,7 @@ In de app kiest u per map een niveau (keuzelijst *Submappen*); in `config.json` 
 |---|---|---|---|
 | **Licht** – submappen overslaan | `false` | `false` | Alleen bestanden direct in de map. Submappen en alles daarin blijven staan. |
 | **Midden** – ook bestanden in submappen | `true` | `false` | Ook oude bestanden in submappen. De submappen zelf blijven altijd staan. |
-| **Zwaar** – ook lege submappen weghalen | `true` | `true` | Als Midden, en submappen die daarna leeg zijn worden weggehaald. |
+| **Zwaar** – daarna ook lege submappen | `true` | `true` | Als Midden, en daarna worden submappen die leeg zijn ook verwijderd. |
 
 Bij **Zwaar** wordt een submap alleen weggehaald als hij helemaal leeg is (ook geen verborgen of uitgesloten
 bestanden, geen te nieuwe bestanden, geen submappen die blijven) én de map zelf (aanmaak- en wijzigingsdatum)

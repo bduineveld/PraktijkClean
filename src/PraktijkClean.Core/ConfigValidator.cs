@@ -83,7 +83,7 @@ public static class ConfigValidator
             if (f.RetentionDays is < 0 or > 3650)
                 errors.Add($"{label}: de bewaartermijn moet tussen 0 en 3650 dagen liggen.");
             if (f.RemoveEmptyFolders && !f.Recurse)
-                errors.Add($"{label}: lege submappen weghalen kan alleen als submappen ook worden doorzocht.");
+                errors.Add($"{label}: lege submappen verwijderen kan alleen als submappen ook worden doorzocht.");
 
             var ex = f.Exclusions;
             if (ex is null)

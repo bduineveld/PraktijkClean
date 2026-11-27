@@ -60,7 +60,7 @@ param(
 
 Set-StrictMode -Version 2.0
 
-$script:PcVersion = '1.4.1'
+$script:PcVersion = '1.4.2'
 $script:PcSchemaVersion = 1
 $script:PcMaxConfigBytes = 262144
 $script:PcMaxEntriesPerFolder = 100000

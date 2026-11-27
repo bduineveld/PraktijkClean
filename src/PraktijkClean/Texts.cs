@@ -43,7 +43,7 @@ internal static class Texts
         "Dit vergroot het risico dat u onbedoeld bestanden kwijtraakt. Gebruik daarna eerst 'Simulatie bekijken'.";
 
     public const string SubfolderHeavyWarning =
-        "Dan worden ook bestanden in alle submappen opgeruimd, en submappen die daarna leeg zijn worden weggehaald " +
+        "Eerst worden oude bestanden in alle submappen verwijderd. Daarna worden submappen verwijderd die leeg zijn " +
         "(ook submappen die al leeg waren), als ze ouder zijn dan de bewaartermijn.\n\n" +
         "Een submap waar nog iets in staat (een nieuwer, verborgen of uitgesloten bestand) blijft altijd staan.\n\n" +
         "Let op vaste mappen die leeg mogen zijn, zoals een map waar de scanner naartoe schrijft: zet die bij " +
@@ -99,8 +99,20 @@ internal static class Texts
 
     public const string UninstallConfirm =
         "Dit haalt voor deze gebruiker weg: de geplande taak, het opschoonscript, de instellingen, het logboek (met de lijst verwijderde bestanden), het icoon in " +
-        "het systeemvak, de snelkoppeling in het Startmenu en de vermelding bij Instellingen > Apps.\n\n" +
+        "het systeemvak, de snelkoppelingen (Startmenu, bureaublad en taakbalk) en de vermelding bij Instellingen > Apps.\n\n" +
         "Uw eigen bestanden (Bureaublad, Downloads en andere mappen) worden NIET aangeraakt. Wat al in de Prullenbak staat, blijft daar staan.";
+
+    public const string PinExplanation =
+        "Bij vastmaken vraagt Windows u dit nog even te bevestigen. Losmaken kan met de rechtermuisknop op het icoon " +
+        "in de taakbalk: 'Losmaken van taakbalk'.";
+
+    public const string PinManually =
+        "Deze versie van Windows laat PraktijkClean zichzelf niet vastmaken. Het kan wel met de hand:\n\n" +
+        "Klik onderaan in de taakbalk met de rechtermuisknop op het icoon van PraktijkClean (zolang dit venster open is, " +
+        "staat het daar) en kies 'Vastmaken aan taakbalk'.";
+
+    public const string ShortcutsNeedSave =
+        "PraktijkClean is nog niet geïnstalleerd. Klik eerst op 'Opslaan'; daarna kunt u hier snelkoppelingen maken.";
 
     public const string InstalledBase =
         "PraktijkClean is ingesteld en staat in simulatiemodus: er wordt nog niets verwijderd.\n\n" +

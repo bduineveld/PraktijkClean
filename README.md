@@ -58,7 +58,11 @@ Bij de allereerste start (er is nog geen `config.json`) opent een korte wizard i
 3. **Waarheen en wanneer**: naar de Prullenbak (en die daarna legen) of direct definitief; elke dag op een
    tijdstip en/of bij aanmelden.
 
-Daarna ziet u een overzicht en klikt u op **Opslaan en simulatie bekijken**: de instellingen worden opgeslagen in
+Daarna ziet u een overzicht met twee vinkjes onder *PraktijkClean snel openen* (allebei standaard aan):
+**Snelkoppeling op het bureaublad** en **Vastmaken aan de taakbalk**. Bij vastmaken toont Windows zelf nog een vraag
+ter bevestiging; op oudere Windows-versies die dat niet ondersteunen, legt PraktijkClean uit hoe het met de
+rechtermuisknop kan. Beide kan later ook op het tabblad *Voorkeuren*, onder *Snelkoppelingen*.
+Dan klikt u op **Opslaan en simulatie bekijken**: de instellingen worden opgeslagen in
 simulatiemodus en de simulatie opent meteen. Er wordt niets verwijderd tot u zelf automatisch opruimen aanzet.
 De gekozen bewaartermijn en submappen worden ook de standaard voor mappen die u later toevoegt. Met **Overslaan**
 gaat u verder met de standaardinstellingen en de stappen hieronder. Bij een beschadigde `config.json` verschijnt
@@ -95,7 +99,7 @@ de wizard niet (dan ziet u een melding).
 | Logboek openen | Toont het logboek (zonder bestandsnamen) in Kladblok. Welke bestanden zijn verwijderd, ziet u op het tabblad *Logboek*. |
 | Problemen oplossen → Geplande taak en script opnieuw instellen | Zet script en taak opnieuw neer met de huidige instellingen. Dit is **geen** terugzetten naar de standaardinstellingen. |
 | Problemen oplossen → Programmamap openen | Opent `%LOCALAPPDATA%\PraktijkClean`. |
-| PraktijkClean verwijderen… | Verwijdert taak, script, instellingen, logboek, icoon, Startmenu-snelkoppeling en de vermelding bij Apps. Nooit uw eigen bestanden. |
+| PraktijkClean verwijderen… | Verwijdert taak, script, instellingen, logboek, icoon, de snelkoppelingen (Startmenu, bureaublad, taakbalk) en de vermelding bij Apps. Nooit uw eigen bestanden. |
 
 ### Staat het aan?
 
@@ -140,8 +144,8 @@ ver het gaat.
   blijven staan. Handig voor gebruikers: zet wat moet blijven in een submap, bijvoorbeeld `Bureaublad\Bewaren`.
 - **Ook bestanden in submappen** (Midden): ook oude bestanden in submappen worden opgeruimd; de submappen zelf
   blijven altijd staan.
-- **Ook lege submappen weghalen** (Zwaar): als Midden, en submappen die daarna leeg zijn (of al leeg waren) worden
-  weggehaald, als ze ouder zijn dan de bewaartermijn. Een submap waar nog iets in staat (een nieuwer, verborgen of
+- **Daarna ook lege submappen** (Zwaar): eerst worden, net als bij Midden, oude bestanden in alle submappen
+  verwijderd; daarna worden submappen die leeg zijn (geworden of al waren) ook verwijderd, als ze ouder zijn dan de bewaartermijn. Een submap waar nog iets in staat (een nieuwer, verborgen of
   uitgesloten bestand) blijft altijd staan.
 
 Naar een zwaarder niveau gaan vraagt eerst om bevestiging. Let bij Zwaar op vaste mappen die leeg mogen zijn,
@@ -160,7 +164,7 @@ niet. Zoals elke wijziging geldt dit pas na *Opslaan*.
 Per map staat op het tabblad *Mappen* een lijst **Nooit verwijderen (uitzonderingen)**. Met **Toevoegen ▾** kiest u:
 
 - **Bestand(en) uit deze map kiezen…**
-- **Submap kiezen…**: een submap overslaan en nooit weghalen (alleen van belang bij Midden of Zwaar).
+- **Submap kiezen…**: een submap overslaan en nooit verwijderen (alleen van belang bij Midden of Zwaar).
 - **Extensie, naam of patroon typen…**: een extensie (`.docx`), een bestandsnaam (`Bewaren.pdf`) of een patroon
   met `*` (willekeurige tekst) of `?` (één teken), bijvoorbeeld `protocol-*`.
 
@@ -174,7 +178,7 @@ met de rechtermuisknop op een bestand klikken (zie hierboven).
 - Snelkoppelingen (`.lnk`, `.url`), verborgen en systeembestanden, alleen-lezenbestanden, geopende bestanden,
   lopende downloads en tijdelijke Office-bestanden.
 - **Mappen.** Submappen worden standaard niet eens bekeken (Licht). Alleen bij Zwaar worden lege submappen
-  weggehaald; een map waar nog iets in staat nooit, en de ingestelde map zelf ook nooit.
+  verwijderd; een map waar nog iets in staat nooit, en de ingestelde map zelf ook nooit.
 - Alles op **OneDrive/cloud- of netwerklocaties** (standaard geblokkeerd, zie hieronder).
 - Alles in systeemmappen, Program Files, AppData en dergelijke.
 - Als er meer bestanden (en lege submappen) in aanmerking komen dan het ingestelde maximum (standaard 200): dan

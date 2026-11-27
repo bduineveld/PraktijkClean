@@ -60,6 +60,7 @@ src/PraktijkClean/               De beheerapp (vensters en teksten)
    TrayPreview.cs                Plaatje van de taakbalk met het icoon (tabblad Voorkeuren)
    SetupWizard.cs                Startwizard bij de allereerste start (drie stappen en een overzicht)
    AppRegistration.cs            Installatie als app: kopie in LOCALAPPDATA, Startmenu, Geïnstalleerde apps
+   Shortcuts.cs                  Snelkoppelingen (Startmenu, bureaublad) met AppUserModelID; vastmaken aan de taakbalk
    AppUninstall.cs               Volledig verwijderen (menu of /uninstall vanuit Instellingen > Apps)
    Updater.cs                    Bijwerken met één klik: controleren, downloaden, goedkeuren, installeren
    StatusInfo.cs                 Bepaalt de status (aan/simulatie/pauze/probleem) voor balk en icoon
@@ -234,7 +235,8 @@ Bij de eerste keer **Opslaan** (en daarna bij elke start, op de achtergrond) zor
   Downloads, dat PraktijkClean zelf opschoont; de installatiemap wordt nooit opgeschoond. Een oudere download
   overschrijft nooit een nieuwere installatie (versie uit de exe); wordt een oudere download geopend, dan start
   de geïnstalleerde nieuwere versie.
-- een snelkoppeling in het Startmenu (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\PraktijkClean.lnk`).
+- een snelkoppeling in het Startmenu (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\PraktijkClean.lnk`), met
+  AppUserModelID `PraktijkClean.App` (zie hieronder). Wordt alleen herschreven als doel of ID afwijkt.
 - een vermelding bij **Instellingen > Apps > Geïnstalleerde apps** via
   `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\PraktijkClean` (naam, versie, icoon, grootte),
   met als `UninstallString` `"…\PraktijkClean.exe" /uninstall`.
@@ -266,6 +268,27 @@ handtekening; `Updater` (app) doet het netwerkwerk en de installatie. Volgorde:
 
 Uitzetten per gebruiker (`CheckForUpdates` = 0) of voor iedereen via `HKLM\SOFTWARE\Policies\PraktijkClean\DisableUpdates`
 = 1. Details en het uitbrengen van een release: [BIJWERKEN.md](BIJWERKEN.md).
+
+## Snelkoppelingen en taakbalk (`Shortcuts.cs`)
+
+Het proces (`SetCurrentProcessExplicitAppUserModelID`, als eerste in `Main`) en alle snelkoppelingen krijgen
+AppUserModelID `PraktijkClean.App`. Daardoor horen venster, Startmenu-item en een vastgemaakt taakbalk-icoon bij
+elkaar, en kan Windows de app vastmaken. Een icoon dat vóór 1.4.2 met de hand is vastgemaakt (zonder ID) krijgt bij
+de installatie de ID erbij, zodat het open venster niet als tweede icoon verschijnt.
+
+- **Bureaublad**: `PraktijkClean.lnk` in de bureaubladmap van de gebruiker (OneDrive-omleiding inbegrepen). `.lnk`
+  is standaard uitgezonderd en snelkoppelingen worden altijd overgeslagen, dus de opschoning raakt hem niet.
+- **Taakbalk**: via de officiële WinRT-functie `Windows.UI.Shell.TaskbarManager.RequestPinCurrentAppAsync`, aangeroepen
+  zonder extra bibliotheken (activatiefabriek via `RoGetActivationFactory`, functies via hun plaats in de
+  COM-functietabel; ID's uit `Windows.UI.winmd`). Windows vraagt de gebruiker om bevestiging. Voorwaarden: de
+  markering `ITaskbarManagerDesktopAppSupportStatics` bestaat, er is een Startmenu-snelkoppeling met dezelfde
+  AppUserModelID, het venster staat voorop, en de Limited Access Feature `com.microsoft.windows.taskbar.pin` vraagt
+  geen sleutel meer (vrijgegeven vanaf build 26100.7705 / 26200.7705). Anders legt de app uit hoe het met de
+  rechtermuisknop kan. Er wordt geen ongedocumenteerde interface gebruikt.
+- De keuzes uit de startwizard worden uitgevoerd nadat de installatie klaar is en de melding is gesloten. Op het
+  tabblad *Voorkeuren* kan het ook later (meteen, zonder *Opslaan*). Losmaken van de taakbalk doet de gebruiker zelf.
+- Verwijderen haalt de snelkoppelingen in Startmenu, bureaublad en de map met vastgemaakte taakbalk-iconen weg, maar
+  alleen als ze naar de geïnstalleerde PraktijkClean wijzen.
 
 ## Icoon in het systeemvak (optioneel)
 

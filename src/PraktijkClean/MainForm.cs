@@ -105,15 +105,15 @@ internal sealed class MainForm : Form
     private readonly NumberBox _numDays = new() { Minimum = 0, Maximum = 3650, Width = 70 };
     private FlowLayoutPanel _daysRow = null!;
     /// <summary>Compacte keuze voor submappen; de uitgebreide kaarten staan in het venster dat opent bij dubbelklikken.</summary>
-    private static readonly string[] SubfolderChoices = { "Alleen deze map (submappen overslaan)", "Ook bestanden in submappen", "Ook lege submappen weghalen" };
-    private readonly ComboBox _cmbSubfolders = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 260 };
+    private static readonly string[] SubfolderChoices = { "Overslaan (alleen deze map)", "Bestanden erin verwijderen", "Bestanden erin verwijderen, daarna ook lege submappen" };
+    private readonly ComboBox _cmbSubfolders = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 340, DropDownWidth = 360 };
     private int _subfolderIndex;
-    private readonly LinkLabel _lnkFolderDialog = new() { Text = "Uitleg en voorbeelden…", AutoSize = true, Margin = new Padding(6, 7, 3, 3) };
+    private readonly LinkLabel _lnkFolderDialog = new() { Text = "Uitleg en voorbeelden…", AutoSize = true, Margin = new Padding(3, 0, 3, 8) };
     private readonly Label _lblListHint = new()
     {
         Text = "Dubbelklik op een map om hem met uitleg in te stellen.", AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(3, 6, 3, 0),
     };
-    private readonly Label _lblSubfolderHint = new() { AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(3, 0, 3, 6) };
+    private readonly Label _lblSubfolderHint = new() { AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(3, 0, 3, 2) };
     private readonly CheckBox _chkAllowSync = new() { Text = "Opruimen op deze OneDrive-/netwerklocatie toestaan (afgeraden)", AutoSize = true };
     private readonly ListView _lstExclusions = new()
     {
@@ -141,11 +141,17 @@ internal sealed class MainForm : Form
     private readonly ComboBox _cmbDefRetention = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 210 };
     private readonly NumberBox _numDefDays = new() { Minimum = 0, Maximum = 3650, Width = 70 };
     private FlowLayoutPanel _defDaysRow = null!;
-    private readonly ComboBox _cmbDefSubfolders = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 260 };
+    private readonly ComboBox _cmbDefSubfolders = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 340, DropDownWidth = 360 };
     private readonly CheckBox _chkTray = new() { Text = "Icoon van PraktijkClean rechtsonder in het systeemvak tonen", AutoSize = true };
     private readonly TrayPreview _trayPreview = new();
     /// <summary>De gebruiker heeft het vinkje voor het icoon veranderd en nog niet opgeslagen.</summary>
     private bool _trayEdited;
+    private readonly Button _btnDesktopLink = new() { Text = "Op het bureaublad zetten", AutoSize = true, Margin = new Padding(0, 3, 8, 3) };
+    private readonly Button _btnPin = new() { Text = "Vastmaken aan de taakbalk", AutoSize = true, Margin = new Padding(0, 3, 8, 3) };
+    private readonly Label _lblDesktopLink = new() { AutoSize = true, ForeColor = Color.FromArgb(27, 120, 50), Margin = new Padding(3, 8, 3, 3) };
+    private readonly Label _lblPin = new() { AutoSize = true, ForeColor = Color.FromArgb(27, 120, 50), Margin = new Padding(3, 8, 3, 3) };
+    /// <summary>Keuzes uit de startwizard die na de installatie worden uitgevoerd (bureaublad, taakbalk).</summary>
+    private (bool Desktop, bool Pin)? _pendingShortcuts;
 
     // ---------------------------------------------------------------- Tabblad Logboek
     private readonly Label _lblLastRun = new() { AutoSize = true };
@@ -342,9 +348,10 @@ internal sealed class MainForm : Form
         _daysRow = Row(_numDays, Caption("dagen"));
         var choices = Form2(
             (Caption("Opruimen als een bestand:"), Row(_cmbRetention, _daysRow)),
-            (Caption("Submappen:"), Row(_cmbSubfolders, _lnkFolderDialog)));
+            (Caption("Submappen:"), _cmbSubfolders));
         AddRow(details, choices);
         AddRow(details, Wrap(_lblSubfolderHint));
+        AddRow(details, _lnkFolderDialog);
         AddRow(details, _chkAllowSync);
         AddRow(details, Heading("Nooit verwijderen (uitzonderingen)"));
         AddRow(details, _lstExclusions);
@@ -400,7 +407,19 @@ internal sealed class MainForm : Form
         var trayHint = Hint(Texts.TrayExplanation);
         trayHint.Margin = new Padding(24, 2, 3, 8);
         AddRow(prefs, trayHint);
-        AddRow(prefs, Hint("Wijzigingen op dit tabblad gelden nadat u op 'Opslaan' heeft geklikt.", top: 14));
+        AddRow(prefs, Hint("De standaard voor nieuwe mappen en het icoon gelden nadat u op 'Opslaan' heeft geklikt.", top: 6));
+        AddRow(prefs, Heading("Snelkoppelingen", top: 22));
+        AddRow(prefs, Hint("Om PraktijkClean snel te openen. Dit gebeurt meteen, zonder 'Opslaan'. In het Startmenu staat PraktijkClean altijd.", bottom: 4));
+        var links = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0, 2, 0, 2) };
+        links.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        links.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        links.Controls.Add(_btnDesktopLink, 0, 0);
+        links.Controls.Add(_lblDesktopLink, 1, 0);
+        links.Controls.Add(_btnPin, 0, 1);
+        links.Controls.Add(_lblPin, 1, 1);
+        _btnDesktopLink.Anchor = _btnPin.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        AddRow(prefs, links);
+        AddRow(prefs, Hint(Texts.PinExplanation, top: 4));
 
         // ---- Tabblad Logboek: eerst wat er is verwijderd, daarna de controles
         var log = Grid();
@@ -690,6 +709,9 @@ internal sealed class MainForm : Form
             _config.DefaultSubfolderLevel = SubfolderLevels.All[_cmbDefSubfolders.SelectedIndex].Level;
             MarkDirty();
         };
+        _btnDesktopLink.Click += (_, _) => OnDesktopLinkToggle();
+        _btnPin.Click += async (_, _) => await PinToTaskbar(fromPreferences: true);
+        _tabs.SelectedIndexChanged += (_, _) => { if (_tabs.SelectedTab?.Text == "Voorkeuren") _ = RefreshShortcutState(); };
         _chkTray.CheckedChanged += (_, _) =>
         {
             _trayPreview.IconVisible = _chkTray.Checked;
@@ -909,7 +931,7 @@ internal sealed class MainForm : Form
     {
         if (SubfolderLevels.IndexOf(to) <= SubfolderLevels.IndexOf(from)) return true;
         return to == SubfolderLevels.Heavy
-            ? ConfirmDialog.Ask(owner, "Ook lege submappen weghalen?", Texts.SubfolderHeavyWarning, "Lege submappen weghalen", ConfirmIcon.Warning)
+            ? ConfirmDialog.Ask(owner, "Ook lege submappen verwijderen?", Texts.SubfolderHeavyWarning, "Lege submappen verwijderen", ConfirmIcon.Warning)
             : ConfirmDialog.Ask(owner, "Ook bestanden in submappen opruimen?", Texts.SubfolderMediumWarning, "Submappen doorzoeken", ConfirmIcon.Warning);
     }
 
@@ -1072,7 +1094,11 @@ internal sealed class MainForm : Form
             }
             if (!firstInstallInfo) return;
             if (_deferInstalledInfo) _installedInfoPending = true;
-            else Info(Texts.Installed + (TrayIntegration.IsEnabled() ? Texts.TrayInstalledNote : ""));
+            else
+            {
+                Info(Texts.Installed + (TrayIntegration.IsEnabled() ? Texts.TrayInstalledNote : ""));
+                _ = RunPendingShortcuts();
+            }
         }, TaskScheduler.FromCurrentSynchronizationContext());
     }
 
@@ -1421,7 +1447,7 @@ internal sealed class MainForm : Form
             _lblLastRun.Text = $"{lr.ToLocalTime():dd-MM-yyyy HH:mm} ({TriggerText(last.Trigger)}, {last.Action}).";
             _lblLastResult.Text = $"{last.Deleted} verwijderd ({Format.Bytes(last.DeletedBytes)}), {last.Candidates} in aanmerking, " +
                                   $"{last.Skipped} overgeslagen, {last.TooYoung} te recent, {last.Errors} fout(en)." +
-                                  (last.EmptyFolders > 0 ? $"\nLege submappen: {last.EmptyFoldersDeleted} weggehaald, {last.EmptyFolders} in aanmerking." : "");
+                                  (last.EmptyFolders > 0 ? $"\nLege submappen: {last.EmptyFoldersDeleted} verwijderd, {last.EmptyFolders} in aanmerking." : "");
             problems.AddRange(last.Messages.Where(m => last.Errors > 0 || last.ExitCode != 0));
             problems.AddRange(last.Folders.Where(f => f.Status is "Geblokkeerd" or "Fout").Select(f => $"{NameOf(f.Id)}: {f.Message}"));
             if (last.RecycleBin is { } lb)
@@ -1666,12 +1692,87 @@ internal sealed class MainForm : Form
         using var wizard = new SetupWizard(FirstRunChoices.From(_config), desktop, downloads, AcceptWizardFolder);
         if (wizard.ShowDialog(this) != DialogResult.OK) return;   // Overgeslagen: standaardinstellingen blijven staan.
         FirstRunSetup.Apply(_config, wizard.Choices);
+        if (wizard.DesktopShortcut || wizard.PinToTaskbar) _pendingShortcuts = (wizard.DesktopShortcut, wizard.PinToTaskbar);
         FillFromConfig();
         MarkDirty();
         _deferInstalledInfo = true;
         try { await RunBusy("Simulatie wordt uitgevoerd…", OnSimulate); }
         finally { _deferInstalledInfo = false; }
-        if (_installedInfoPending) { _installedInfoPending = false; Info(Texts.InstalledAfterWizard + (TrayIntegration.IsEnabled() ? Texts.TrayInstalledNote : "")); }
+        if (_installedInfoPending)
+        {
+            _installedInfoPending = false;
+            Info(Texts.InstalledAfterWizard + (TrayIntegration.IsEnabled() ? Texts.TrayInstalledNote : ""));
+            await RunPendingShortcuts();
+        }
+    }
+
+    // =====================================================================================
+    // Snelkoppelingen en taakbalk
+    // =====================================================================================
+
+    /// <summary>Na de eerste installatie: de keuzes uit de wizard (bureaublad, taakbalk) uitvoeren.</summary>
+    private async Task RunPendingShortcuts()
+    {
+        if (_pendingShortcuts is not { } p || !File.Exists(_layout.AppExePath)) return;
+        _pendingShortcuts = null;
+        if (p.Desktop) Shortcuts.CreateDesktop(_layout);
+        if (p.Pin)
+        {
+            await Task.Delay(400);   // Windows even de tijd geven om de nieuwe Startmenu-snelkoppeling te zien
+            await PinToTaskbar(fromPreferences: false);
+        }
+        else if (p.Desktop) Flash(Shortcuts.HasDesktop(_layout) ? "✓ Er staat een snelkoppeling naar PraktijkClean op het bureaublad." : "De snelkoppeling op het bureaublad kon niet worden gemaakt.");
+        await RefreshShortcutState();
+    }
+
+    private async Task PinToTaskbar(bool fromPreferences)
+    {
+        if (!File.Exists(_layout.AppExePath)) { Info(Texts.ShortcutsNeedSave); return; }
+        Shortcuts.EnsureStartMenu(_layout);
+        _btnPin.Enabled = false;
+        try
+        {
+            Activate();
+            switch (await Shortcuts.RequestPinAsync(_layout))
+            {
+                case Shortcuts.PinResult.Pinned: Flash("✓ PraktijkClean staat nu vast aan de taakbalk."); break;
+                case Shortcuts.PinResult.AlreadyPinned: if (fromPreferences) Flash("PraktijkClean stond al vast aan de taakbalk."); break;
+                case Shortcuts.PinResult.Declined: Flash("Niet vastgemaakt. Dat kan later alsnog op het tabblad Voorkeuren."); break;
+                case Shortcuts.PinResult.NotSupported: Info(Texts.PinManually); break;
+            }
+        }
+        finally
+        {
+            _btnPin.Enabled = true;
+            await RefreshShortcutState();
+        }
+    }
+
+    private void OnDesktopLinkToggle()
+    {
+        if (!File.Exists(_layout.AppExePath)) { Info(Texts.ShortcutsNeedSave); return; }
+        if (Shortcuts.HasDesktop(_layout))
+        {
+            Shortcuts.RemoveDesktop(_layout);
+            Flash("De snelkoppeling is van het bureaublad gehaald.");
+        }
+        else
+        {
+            Shortcuts.CreateDesktop(_layout);
+            Flash(Shortcuts.HasDesktop(_layout) ? "✓ Er staat nu een snelkoppeling naar PraktijkClean op het bureaublad." : "De snelkoppeling kon niet worden gemaakt.");
+        }
+        _ = RefreshShortcutState();
+    }
+
+    private async Task RefreshShortcutState()
+    {
+        bool desktop = Shortcuts.HasDesktop(_layout);
+        _btnDesktopLink.Text = desktop ? "Van het bureaublad halen" : "Op het bureaublad zetten";
+        _lblDesktopLink.Text = desktop ? "✓ Staat op het bureaublad" : "";
+        bool? pinned = await Shortcuts.IsPinnedAsync(_layout);
+        if (IsDisposed) return;
+        _lblPin.Text = pinned == true ? "✓ Staat vast aan de taakbalk" : "";
+        _btnPin.Enabled = pinned != true;
     }
 
     /// <summary>Controle op een map die in de wizard wordt gekozen (dezelfde regels als bij "Map toevoegen…").</summary>
@@ -1812,7 +1913,7 @@ internal sealed class MainForm : Form
             if (!CheckReport(report)) return;
             var sb = new StringBuilder();
             sb.AppendLine($"Bij de huidige instellingen komen nu {report.Candidates} bestand(en) ({Format.Bytes(report.CandidateBytes)}) in aanmerking voor verwijdering." +
-                          (report.EmptyFolders > 0 ? $" Daarna worden {report.EmptyFolders} lege submap(pen) weggehaald." : ""));
+                          (report.EmptyFolders > 0 ? $" Daarna worden {report.EmptyFolders} lege submap(pen) verwijderd." : ""));
             foreach (var f in report.Folders.Where(f => f.Status is "Geblokkeerd" or "Fout"))
                 sb.AppendLine($"• {NameOf(f.Id)}: {f.Message}");
             sb.AppendLine();
@@ -1874,7 +1975,7 @@ internal sealed class MainForm : Form
                 : "";
             int choice = AskWithSimulation("Nu opruimen?",
                 $"Er worden nu {preview.Candidates} bestand(en) ({Format.Bytes(preview.CandidateBytes)}) {where}" +
-                (preview.EmptyFolders > 0 ? $"\n\nDaarna worden {preview.EmptyFolders} submap(pen) die dan leeg zijn weggehaald." : "") + binLine, "Nu opruimen");
+                (preview.EmptyFolders > 0 ? $"\n\nDaarna worden {preview.EmptyFolders} submap(pen) die dan leeg zijn verwijderd." : "") + binLine, "Nu opruimen");
             if (choice == ChoiceSimulate) { ShowSimulation(preview); continue; }
             if (choice != ChoiceGo) return;
             break;
@@ -1884,7 +1985,7 @@ internal sealed class MainForm : Form
         if (!CheckReport(result)) return;
         var sb = new StringBuilder();
         sb.AppendLine($"{result.Deleted} bestand(en) verwijderd ({Format.Bytes(result.DeletedBytes)}).");
-        if (result.EmptyFolders > 0) sb.AppendLine($"{result.EmptyFoldersDeleted} lege submap(pen) weggehaald.");
+        if (result.EmptyFolders > 0) sb.AppendLine($"{result.EmptyFoldersDeleted} lege submap(pen) verwijderd.");
         if (result.RecycleBin is { } rb)
             sb.AppendLine($"Prullenbak: {rb.Deleted} item(s) verwijderd ({Format.Bytes(rb.DeletedBytes)}).");
         sb.AppendLine($"{result.Skipped} overgeslagen, {result.Errors} fout(en).");

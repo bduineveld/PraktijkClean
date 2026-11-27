@@ -26,9 +26,6 @@ internal static class AppRegistration
 
     private const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\PraktijkClean";
 
-    private static string ShortcutPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.Programs), "PraktijkClean.lnk");
-
     public static bool IsRunningInstalledCopy(InstallLayout layout) => SamePath(Application.ExecutablePath, layout.AppExePath);
 
     public static bool IsRegistered()
@@ -55,16 +52,18 @@ internal static class AppRegistration
             if (trayWasRunning || TrayIntegration.IsEnabled()) TrayIntegration.Start(layout);
         }
         WriteUninstallEntry(layout);
-        TryCreateShortcut(layout);
+        Shortcuts.EnsureStartMenu(layout);
+        Shortcuts.UpdatePinnedLinks(layout);
     }
 
-    /// <summary>Haalt de Startmenu-snelkoppeling en de vermelding bij Geïnstalleerde apps weg.</summary>
-    public static void Unregister()
+    /// <summary>
+    /// Haalt de snelkoppelingen (Startmenu, bureaublad, taakbalk) en de vermelding bij Geïnstalleerde apps weg.
+    /// </summary>
+    public static void Unregister(InstallLayout layout)
     {
         try { Registry.CurrentUser.DeleteSubKeyTree(UninstallKey, throwOnMissingSubKey: false); }
         catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException) { }
-        try { if (File.Exists(ShortcutPath)) File.Delete(ShortcutPath); }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException) { }
+        Shortcuts.RemoveAll(layout);
     }
 
     /// <summary>
@@ -140,32 +139,6 @@ internal static class AppRegistration
         try { key.SetValue("EstimatedSize", (int)Math.Max(1, new FileInfo(exe).Length / 1024), RegistryValueKind.DWord); }
         catch (IOException) { }
         if (key.GetValue("InstallDate") is null) key.SetValue("InstallDate", DateTime.Today.ToString("yyyyMMdd"));
-    }
-
-    /// <summary>Startmenu-snelkoppeling via de standaard Windows Script Host-component; mislukt dit, dan is dat niet erg.</summary>
-    private static void TryCreateShortcut(InstallLayout layout)
-    {
-        object? shell = null, link = null;
-        try
-        {
-            var type = Type.GetTypeFromProgID("WScript.Shell");
-            if (type is null) return;
-            shell = Activator.CreateInstance(type);
-            link = type.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { ShortcutPath });
-            if (link is null) return;
-            var lt = link.GetType();
-            lt.InvokeMember("TargetPath", BindingFlags.SetProperty, null, link, new object[] { layout.AppExePath });
-            lt.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, link, new object[] { layout.BaseDirectory });
-            lt.InvokeMember("Description", BindingFlags.SetProperty, null, link, new object[] { "Bureaublad en Downloads automatisch opruimen" });
-            lt.InvokeMember("IconLocation", BindingFlags.SetProperty, null, link, new object[] { layout.AppExePath + ",0" });
-            lt.InvokeMember("Save", BindingFlags.InvokeMethod, null, link, null);
-        }
-        catch (Exception ex) when (ex is TargetInvocationException or System.Runtime.InteropServices.COMException or UnauthorizedAccessException or IOException or MissingMethodException) { }
-        finally
-        {
-            if (link is not null && System.Runtime.InteropServices.Marshal.IsComObject(link)) System.Runtime.InteropServices.Marshal.ReleaseComObject(link);
-            if (shell is not null && System.Runtime.InteropServices.Marshal.IsComObject(shell)) System.Runtime.InteropServices.Marshal.ReleaseComObject(shell);
-        }
     }
 
     internal static bool SamePath(string a, string b) =>

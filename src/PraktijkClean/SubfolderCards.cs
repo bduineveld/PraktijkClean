@@ -14,7 +14,7 @@ namespace PraktijkClean;
 /// </summary>
 internal sealed class SubfolderCards : Control
 {
-    private static readonly string[] Titles = { "Alleen deze map", "Ook submappen", "Ook lege submappen" };
+    private static readonly string[] Titles = { "Alleen deze map", "Ook bestanden in submappen", "Daarna ook lege submappen" };
     private static readonly string[] Tags = { "Licht", "Midden", "Zwaar" };
 
     private int _selected;
@@ -80,7 +80,22 @@ internal sealed class SubfolderCards : Control
     private int Pad => UiFont.Px(12);
     private int LineH => (int)Math.Ceiling(Font.GetHeight()) + UiFont.Px(3);
 
-    private int CardHeight => Pad + LineH + LineH + UiFont.Px(6) + 4 * LineH + Pad;
+    // Titel (één of twee regels), Licht/Midden/Zwaar, ruimte, en het voorbeeldboompje van vier regels.
+    private int CardHeight => HeightFor(Width);
+    private int HeightFor(int width) => Pad + TitleLinesFor(width) * LineH + LineH + UiFont.Px(6) + 4 * LineH + Pad;
+
+    /// <summary>Twee regels voor de titels als er één niet op een regel past (bij smalle kaarten), anders één.</summary>
+    private int TitleLines => TitleLinesFor(Width);
+
+    private int TitleLinesFor(int width)
+    {
+        int w = (width - 2 * Gap - 1) / 3 - 2 * Pad;
+        if (w <= 0) return 2;
+        using var bold = new Font(Font, FontStyle.Bold);
+        foreach (string t in Titles)
+            if (TextRenderer.MeasureText(t, bold, Size.Empty, TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine).Width > w) return 2;
+        return 1;
+    }
 
     private void UpdateHeight()
     {
@@ -94,9 +109,22 @@ internal sealed class SubfolderCards : Control
     protected override void ScaleControl(SizeF factor, BoundsSpecified specified) =>
         base.ScaleControl(factor, specified & ~BoundsSpecified.Height);
 
-    protected override void OnSizeChanged(EventArgs e) { base.OnSizeChanged(e); UpdateHeight(); }
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        // De breedte bepaalt of de titels één of twee regels nodig hebben. Een hoogtewijziging tijdens het indelen
+        // van de tabel wordt daar niet meer meegenomen, dus de tabel daarna nog een keer laten indelen.
+        int before = Height;
+        UpdateHeight();
+        if (Height != before && IsHandleCreated && Parent is { } p)
+            BeginInvoke(new Action(() => { if (!p.IsDisposed) p.PerformLayout(); }));
+    }
 
-    public override Size GetPreferredSize(Size proposedSize) => new(UiFont.Px(3 * 175 + 2 * 10), CardHeight + UiFont.Px(4));
+    public override Size GetPreferredSize(Size proposedSize)
+    {
+        int w = proposedSize.Width is > 1 and < 100000 ? proposedSize.Width : Width;
+        return new(UiFont.Px(3 * 175 + 2 * 10), HeightFor(w) + UiFont.Px(4));
+    }
 
     private Rectangle CardRect(int i)
     {
@@ -188,9 +216,11 @@ internal sealed class SubfolderCards : Control
         // Kop: titel over de volle breedte; daaronder Licht/Midden/Zwaar met rechts de sterktemeter.
         int barW = UiFont.Px(12), barH = UiFont.Px(5), barGap = UiFont.Px(3);
         int barsW = 3 * barW + 2 * barGap;
+        int titleLines = TitleLines;
         using (var bold = new Font(Font, FontStyle.Bold))
-            TextRenderer.DrawText(g, Titles[i], bold, new Rectangle(x, y, w, LineH), text, flags);
-        y += LineH;
+            TextRenderer.DrawText(g, Titles[i], bold, new Rectangle(x, y, w, titleLines * LineH), text,
+                TextFormatFlags.Left | TextFormatFlags.NoPrefix | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis);
+        y += titleLines * LineH;
         for (int b = 0; b < 3; b++)
         {
             var br = new Rectangle(x + w - barsW + b * (barW + barGap), y + (LineH - barH) / 2, barW, barH);

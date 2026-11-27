@@ -1,5 +1,23 @@
 # Bekende beperkingen en nog niet geteste onderdelen
 
+## Getest op Windows 11 (versie 1.4.2)
+
+In dezelfde Parallels-VM (Windows 11 ARM64, build 26300):
+
+- `build.ps1` volledig: alle scripttests en 66 C#-tests geslaagd; `PraktijkClean-1.4.2.exe` (603 kB).
+- Startwizard opnieuw doorlopen (config.json tijdelijk weggezet, daarna teruggezet): *Prullenbak daarna legen* staat
+  standaard aan; op het overzicht de twee nieuwe vinkjes (bureaublad, taakbalk), allebei aan.
+- Na *Opslaan en simulatie bekijken* vanuit de gedownloade exe: Startmenu- en bureaubladsnelkoppeling met
+  AppUserModelID `PraktijkClean.App` (ook zichtbaar in `shell:AppsFolder`), en PraktijkClean vastgemaakt aan de
+  taakbalk (`PraktijkClean.lnk` in *User Pinned\TaskBar*). Tabblad *Voorkeuren* toont beide als aanwezig;
+  de bureaubladknop haalt de snelkoppeling weg en zet hem terug.
+- Nieuwe teksten voor submappen gecontroleerd in het hoofdvenster (keuzelijst, link *Uitleg en voorbeelden…* eronder),
+  in het venster *Map instellen* (kaarttitels op één regel), in stap 2 van de wizard en in de waarschuwing
+  "Ook lege submappen verwijderen?".
+- **Niet** gezien: de bevestigingsvraag van Windows bij vastmaken (de VM werd op dat moment ook door de gebruiker
+  bediend), de uitleg voor oudere Windows-versies zonder deze functie, en het verwijderen van de snelkoppelingen
+  via *PraktijkClean verwijderen…*.
+
 ## Getest op Windows 11 (versie 1.4.1)
 
 Getest in een nieuwe Parallels-VM (Windows 11 ARM64, build 26300, schermschaal 200 %):

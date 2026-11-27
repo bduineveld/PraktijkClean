@@ -54,7 +54,7 @@ internal sealed class SimulationResultForm : Form
             Text =
                 $"In aanmerking voor verwijdering: {report.Candidates} bestand(en), samen {Format.Bytes(report.CandidateBytes)}.\n" +
                 $"Overgeslagen: {report.Skipped}. Nog te recent: {report.TooYoung}. Fouten: {report.Errors}.\n" +
-                (report.EmptyFolders > 0 ? $"Daarna leeg en weggehaald: {report.EmptyFolders} submap(pen).\n" : "") +
+                (report.EmptyFolders > 0 ? $"Daarna leeg en verwijderd: {report.EmptyFolders} submap(pen).\n" : "") +
                 (report.Candidates + report.EmptyFolders > config.MaxFilesPerRun
                     ? $"Let op: dit is meer dan het maximum van {config.MaxFilesPerRun} per keer; bij echt opruimen wordt dan uit voorzorg niets verwijderd.\n"
                     : "") +
@@ -126,7 +126,7 @@ internal sealed class SimulationResultForm : Form
                 _list.Items.Add(new ListViewItem(new[] { name, c.Name, Format.Bytes(c.Size), "Komt in aanmerking voor verwijdering" })
                     { Tag = new Candidate(folder.Id, c.Name) });
             foreach (var d in details.EmptyFolders)
-                _list.Items.Add(new ListViewItem(new[] { name, d.Name + "\\", "", "Lege submap: wordt weggehaald" })
+                _list.Items.Add(new ListViewItem(new[] { name, d.Name + "\\", "", "Lege submap: wordt verwijderd" })
                     { Tag = new Candidate(folder.Id, d.Name, IsFolder: true) });
             foreach (var s in details.Skipped)
                 _list.Items.Add(new ListViewItem(new[] { name, s.Name, "", "Overgeslagen: " + s.Reason }) { ForeColor = SystemColors.GrayText });

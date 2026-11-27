@@ -26,8 +26,8 @@ public static class SubfolderLevels
     public static readonly IReadOnlyList<Option> All = new[]
     {
         new Option(Light, "Licht – submappen overslaan", "Alleen bestanden direct in deze map. Submappen en alles daarin blijven staan."),
-        new Option(Medium, "Midden – ook bestanden in submappen", "Ook oude bestanden in submappen worden opgeruimd. De submappen zelf blijven altijd staan."),
-        new Option(Heavy, "Zwaar – ook lege submappen weghalen", "Ook oude bestanden in submappen, en submappen die daarna leeg zijn worden weggehaald. Een map waar nog iets in staat, blijft altijd staan."),
+        new Option(Medium, "Midden – ook bestanden in submappen", "Ook oude bestanden in submappen worden verwijderd. De submappen zelf blijven altijd staan."),
+        new Option(Heavy, "Zwaar – daarna ook lege submappen", "Eerst worden oude bestanden in alle submappen verwijderd, net als bij Midden. Is een submap daarna leeg, dan wordt die ook verwijderd. Een submap waar nog iets in staat, blijft staan."),
     };
 
     public static bool IsValid(string? level) => level is Light or Medium or Heavy;
@@ -50,8 +50,8 @@ public static class SubfolderLevels
     /// <summary>Kort, voor onder de mapnaam in de lijst ("" bij Licht).</summary>
     public static string ShortText(FolderSettings f) => Of(f) switch
     {
-        Medium => "met submappen",
-        Heavy => "lege submappen weg",
+        Medium => "ook in submappen",
+        Heavy => "daarna lege submappen",
         _ => "",
     };
 }

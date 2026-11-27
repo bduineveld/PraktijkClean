@@ -13,7 +13,7 @@ namespace PraktijkClean;
 /// </summary>
 internal sealed class FolderDialog : Form
 {
-    private const int TextWidth = 600;
+    private const int TextWidth = 660;   // breed genoeg voor de kaarttitels op één regel
 
     private readonly ComboBox _cmbRetention = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 220 };
     private readonly NumberBox _numDays = new() { Minimum = 0, Maximum = 3650, Width = 70 };

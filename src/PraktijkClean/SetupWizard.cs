@@ -67,7 +67,14 @@ internal sealed class SetupWizard : Form
         ColumnCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0, 0, 0, 4),
     };
 
+    private readonly CheckBox _chkDesktopLink = new() { Text = "Snelkoppeling op het bureaublad", AutoSize = true, Checked = true, Margin = new Padding(0, 2, 0, 0) };
+    private readonly CheckBox _chkPin = new() { Text = "Vastmaken aan de taakbalk (Windows vraagt u dit daarna nog te bevestigen)", AutoSize = true, Checked = true, Margin = new Padding(0, 6, 0, 0) };
+
     public FirstRunChoices Choices => _choices;
+    /// <summary>Na de installatie een snelkoppeling op het bureaublad zetten.</summary>
+    public bool DesktopShortcut => _chkDesktopLink.Checked;
+    /// <summary>Na de installatie Windows vragen PraktijkClean aan de taakbalk vast te maken.</summary>
+    public bool PinToTaskbar => _chkPin.Checked;
 
     public SetupWizard(FirstRunChoices choices, string desktopPath, string downloadsPath, Func<IWin32Window, string, bool> acceptFolder)
     {
@@ -178,6 +185,9 @@ internal sealed class SetupWizard : Form
         _summary.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         _summary.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         DialogParts.Add(t, _summary);
+        DialogParts.Add(t, DialogParts.Section("PraktijkClean snel openen", top: 12));
+        DialogParts.Add(t, _chkDesktopLink);
+        DialogParts.Add(t, _chkPin);
         var safe = new Label
         {
             Text = "PraktijkClean begint in simulatiemodus: er wordt nog niets verwijderd.\n\n" +
@@ -301,8 +311,8 @@ internal sealed class SetupWizard : Form
         string level = SubfolderLevels.IndexOf(_choices.SubfolderLevel) switch
         {
             0 => "Alleen deze map (Licht): submappen worden overgeslagen",
-            1 => "Ook submappen (Midden): de submappen zelf blijven staan",
-            _ => "Ook lege submappen (Zwaar): submappen die daarna leeg zijn, gaan ook weg",
+            1 => "Ook bestanden in submappen (Midden): de submappen zelf blijven staan",
+            _ => "Daarna ook lege submappen (Zwaar): eerst oude bestanden in submappen, daarna lege submappen verwijderd",
         };
         var when = new System.Collections.Generic.List<string>();
         if (_choices.Daily) when.Add("elke dag om " + _choices.DailyTime);

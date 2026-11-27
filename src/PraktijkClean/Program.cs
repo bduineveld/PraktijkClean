@@ -28,6 +28,10 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        // Vóór het eerste venster: dezelfde AppUserModelID als de snelkoppelingen, zodat venster, Startmenu en een
+        // vastgemaakt taakbalk-icoon bij elkaar horen (en vastmaken via Windows kan).
+        Shortcuts.SetProcessAppId();
+
         // Eerst de Windows-stijl aanzetten, zodat ook de melding hieronder er normaal uitziet.
         // (Schermschaal/DPI staat in app.manifest.)
         Application.EnableVisualStyles();
